@@ -701,7 +701,9 @@ def get_coreferences_from_naf(nafobj):
         if coref.get_type() == 'entity':
             corefering_ids = []
             for coref_span in coref.get_spans():
-                corefering_ids += coref_span.get_span_ids()
+                for target in coref_span:
+                    if target.is_head() is not None:
+                        corefering_ids.append(target.get_id())
             for tid in corefering_ids:
                 for coreftid in corefering_ids:
                     if not coreftid == tid:
@@ -746,7 +748,6 @@ def merge_coreference_portraits(nafobj, sentence_level_portraits):
 
     #1. get coreferences from naf (dict each term identifier to all its coreferences
 
-
     my_coref_dict = get_coreferences_from_naf(nafobj)
     to_merge = defaultdict(list)
     merge_candidates = retrieve_merge_candidates(my_coref_dict, sentence_level_portraits)
@@ -766,18 +767,24 @@ def merge_coreference_portraits(nafobj, sentence_level_portraits):
                         else:
                             to_merge[possible_merge].append(candidate)
 
+    merged = {}
     for k, v in to_merge.items():
         main_portrait = sentence_level_portraits.get(k)
         for merger in v:
             merge_portrait = sentence_level_portraits.get(merger)
-            if merge_portrait is not None:
-                main_portrait.labels += merge_portrait.labels
-                main_portrait.properties += merge_portrait.properties
-                main_portrait.activities += merge_portrait.activities
-                main_portrait.colabels += merge_portrait.colabels
-                del sentence_level_portraits[merger]
+            if merge_portrait is None:
+                previously_merged = merged.get(merger)
+                merge_portrait = sentence_level_portraits.get(previously_merged)
+                merged[previously_merged] = k
+                del sentence_level_portraits[previously_merged]
             else:
-                print(merger)
+                del sentence_level_portraits[merger]
+
+            main_portrait.labels += merge_portrait.labels
+            main_portrait.properties += merge_portrait.properties
+            main_portrait.activities += merge_portrait.activities
+            main_portrait.colabels += merge_portrait.colabels
+            merged[merger] = k
 
 
 
