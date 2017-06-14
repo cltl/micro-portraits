@@ -59,10 +59,10 @@ def extract_pairs_from_categories(catfile, ppmifile, outputfile, threshold=0):
             counter += 1
             if counter%10000000 == 0:
                 print(counter)
-            if int(row['joint freq']) > threshold:
+            if float(row['joint freq']) > threshold:
                 cats = check_categories_mentioned_in_pair(row['description_pair'], catDict)
                 if len(cats) > 0:
-                    outcsv.writerow([row['number'], row['description_pair'], "+".join(cats), row['joint freq'], row['freq d1'], row['freq d2'], row['ppmi']])
+                    outcsv.writerow([str(counter), row['description_pair'], "+".join(cats), row['joint freq'], row['freq d1'], row['freq d2'], row['pmi']])
 
 
 

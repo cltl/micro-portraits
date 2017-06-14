@@ -1,6 +1,8 @@
 import sys
+import csv
 from collections import defaultdict
 from KafNafParserPy import *
+
 
 target_pos = ['noun','name','pron']
 dep2heads = defaultdict(list)
@@ -26,6 +28,8 @@ class cMicroportait():
         self.properties = []
         self.activities = []
         self.colabels = []
+        self.pos = ''
+        self.pos_list = []
 
     def add_label(self, label):
 
@@ -51,6 +55,25 @@ class cMicroportait():
 
         return self.portraitId
 
+    def set_pos(self, pos):
+
+        self.pos = pos
+
+    def get_pos(self):
+
+        return self.pos
+
+    def set_pos_list(self, plist):
+
+        self.pos_list = plist
+
+    def add_pos_to_pos_list(self, pos):
+
+        self.pos_list.append(pos)
+
+    def get_pos_list(self):
+
+        return self.pos_list
 
 
 def get_constituent(head_id):
@@ -83,12 +106,11 @@ def create_sequence_in_lemmas(nafobj, term_ids):
         offset2lemmas[offset] = myterm.get_lemma()
 
     #FIXME: make string with extra space dependent on end word and offset next word
-    lemma_seq = []
+    lemma_string = ''
     for offs, lemma in sorted(offset2lemmas.items()):
-        lemma_seq.append(lemma)
+        lemma_string += lemma + ' '
 
-    lemma_string = " ".join(lemma_seq)
-    return lemma_string
+    return [lemma_string.rstrip()]
 
 
 def get_constituent_in_ordered_lemmas(nafobj, head_id):
@@ -137,12 +159,13 @@ def get_basics_and_constituents_from_coordinated(nafobj, head_id):
     additions = []
     full_constituent = get_constituent_in_ordered_lemmas(nafobj, head_id)
     additions.append(full_constituent)
-    for dep in head2deps.get(head_id):
-        headlemma = get_lemma_from_term(nafobj, dep[0])
-        additions.append(headlemma)
-        if dep[0] in head2deps:
-            constituent = get_constituent_in_ordered_lemmas(nafobj, dep[0])
-            additions.append(constituent)
+    if head_id in head2deps:
+        for dep in head2deps.get(head_id):
+            headlemma = get_lemma_from_term(nafobj, dep[0])
+            additions.append(headlemma)
+            if dep[0] in head2deps:
+                constituent = get_constituent_in_ordered_lemmas(nafobj, dep[0])
+                additions.append(constituent)
 
     return additions
 
@@ -168,12 +191,14 @@ def get_predicative_info(nafobj, head_id):
 
 def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
 
+    #FIXME: make the roles lists right away
     global head2deps
 
     #default: subject expresses agent
     basicrole = 'agent;'
     #add lemma of event
     basicrole += get_lemma_from_term(nafobj, head_id)
+    headpos = get_pos_from_term(nafobj, head_id)
     basicroles = [basicrole]
     predicative = False
 
@@ -191,6 +216,8 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
                 if argpos == 'vg':
                     args = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                     for arg in args:
+                        if isinstance(arg, list):
+                            arg = " ".join(arg)
                         basicroles.append(basicrole + ' ' + arg)
                 else:
                     headlemma = get_lemma_from_term(nafobj, head_id)
@@ -204,19 +231,28 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
                         analyze_subject_relations(nafobj, deprel[0], term_portrait, True)
                     elif deprel[0] in head2deps:
                         constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
+                        constituent = " ".join(constituent)
                         completer_role = basicrole + ' ' + constituent.replace(';',',')
                         basicroles.append(completer_role)
             elif gram_rel in ['hd/obj1', 'hd/ld', 'dp/dp', 'hd/pc', 'hd/pobj1', 'hd/obj2', 'hd/se','hd/mod','hd/predm','whd/body']:
                 if argpos == 'vg':
                     args = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                     for arg in args:
+                        if isinstance(arg, list):
+                            arg = " ".join(arg)
+                        if isinstance(basicrole, list):
+                            basicrole = " ".join(basicrole)
                         basicroles.append(basicrole + ' ' + arg)
                 else:
                     arglemma = get_lemma_from_term(nafobj, deprel[0])
+                    if isinstance(basicrole, list):
+                        basicrole = " ".join(basicrole)
+
                     completer_role = basicrole + ' ' + arglemma
                     basicroles.append(completer_role)
                     if deprel[0] in head2deps:
                         constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
+                        constituent = " ".join(constituent)
                         completer_role = basicrole + ' ' + constituent.replace(';',',')
                         basicroles.append(completer_role)
             #ignore subject relation (= entity itself)
@@ -225,10 +261,17 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
 
     if predicative:
         for brole in basicroles:
-            term_portrait.add_property(brole)
+            if isinstance(brole, str) or isinstance(brole, unicode):
+                my_property = brole.split(';')
+            else:
+                my_property = brole
+            my_property.append(headpos)
+            term_portrait.add_property(my_property)
     else:
         for brole in basicroles:
-            term_portrait.add_activity(brole)
+            activity = brole.split(';')
+            activity.append(headpos)
+            term_portrait.add_activity(activity)
 
 
 def analyze_pobject(nafobj, head_id, term_portrait):
@@ -288,6 +331,7 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
     basicrole += headlemma
 
     basicroles = [headlemma]
+    headpos = get_pos_from_term(nafobj, head_id)
 
     for deprel in head2deps.get(head_id):
         gramrel = deprel[1]
@@ -300,10 +344,15 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
                     basicroles.append(specific_basis + ' FROM ' + arg)
             else:
                 arglemma = get_lemma_from_term(nafobj, deprel[0])
+                if isinstance(specific_basis, list):
+                    specific_basis = " ".join(specific_basis)
                 completer_role = specific_basis + ' FROM ' + arglemma
                 basicroles.append(completer_role)
                 if deprel[0] in head2deps:
                     constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
+                    constituent = " ".join(constituent)
+                    if isinstance(specific_basis, list):
+                        specific_basis = " ".join(specific_basis)
                     completer_role = specific_basis + ' ' + constituent.replace(';',',')
                     basicroles.append(completer_role)
         elif gramrel in ['hd/su', 'hd/obj1','hd/predm','hd/se','hd/mod','hd/svp','hd/vc','hd/predc','hd/ld','dp/dp']:
@@ -318,10 +367,16 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
                 basicroles.append(completer_role)
                 if deprel[0] in head2deps:
                     constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
+                    constituent = " ".join(constituent)
                     completer_role = basicrole + ' ' + constituent.replace(';',',')
                     basicroles.append(completer_role)
         elif not gramrel in ['hd/obj2','cmp/body','sat/nucl','-- / --']:
             print(gramrel, 'not covered yet for obj2')
+
+    for brole in basicroles:
+        activity = brole.split(';')
+        activity.append(headpos)
+        term_portrait.add_activity(activity)
 
 
 def relevant_obj_cooccurence(headpos, gram_rel, basicrole):
@@ -365,7 +420,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
     headpos = get_pos_from_term(nafobj, head_id)
     basicroles = []
     if headpos in ['prep','comp']:
-        #FIXME: if preposition hads the sentence, obj1 is counted double
+        #FIXME: if preposition heads the sentence, obj1 is counted double
         basicrole, head_id = analyze_pobject(nafobj, head_id, term_portrait)
         basicroles = [basicrole]
         #print(head_id, get_lemma_from_term(nafobj, head_id))
@@ -384,6 +439,8 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                 if argpos == 'vg':
                     args = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                     for arg in args:
+                        if isinstance(arg, list):
+                            arg = " ".join(arg)
                         basicroles.append(basicrole + ' BY ' + arg)
                 else:
                     arglemma = get_lemma_from_term(nafobj, deprel[0])
@@ -391,6 +448,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                     basicroles.append(completer_role)
                     if deprel[0] in head2deps:
                         constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
+                        constituent = " ".join(constituent)
                         completer_role = basicrole + ' BY ' + constituent.replace(';', ',')
                         basicroles.append(completer_role)
             elif relevant_obj_cooccurence(headpos, gram_rel, basicrole):
@@ -398,6 +456,8 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                 if argpos == 'vg':
                     args = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                     for arg in args:
+                        if isinstance(arg, list):
+                            arg = " ".join(arg)
                         basicroles.append(basicrole + ' ' + arg)
                 else:
                     arglemma = get_lemma_from_term(nafobj, deprel[0])
@@ -405,6 +465,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                     basicroles.append(completer_role)
                     if deprel[0] in head2deps:
                         constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
+                        constituent = " ".join(constituent)
                         completer_role = basicrole + ' ' + constituent.replace(';',',')
                         basicroles.append(completer_role)
             elif not irrelevant_obj_occurrence(headpos, gram_rel, basicrole):
@@ -414,7 +475,9 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
 
     for brole in basicroles:
         if brole is not None:
-            term_portrait.add_activity(brole)
+            activity = brole.split(';')
+            activity.append(headpos)
+            term_portrait.add_activity(activity)
 
 def is_passive(deprels):
 
@@ -450,6 +513,7 @@ def add_information_passive(nafobj, head_id):
                 basicroles.append(arglemma)
                 if deprel[0] in head2deps:
                     constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
+                    constituent = " ".join(constituent)
                     basicroles.append(constituent.replace(';',','))
         elif not gram_rel in ['hd/su', 'hd/obj1', 'hd/svp', 'nucl/tag', 'tag/nucl', 'hd/sat', '-- / --', 'hd/predc','hd/vc']:
             print(gram_rel, 'not covered in rules for vc head passives')
@@ -464,6 +528,9 @@ def analyze_passive_structure(nafobj, entityid, term_portrait):
     :return:
     '''
     heads = dep2heads.get(entityid)
+    if len(heads) > 0:
+        headpos = get_pos_from_term(nafobj, heads[0][0])
+
     basicrole = 'undergoer;'
     basicroles = []
     #obj_additions = []
@@ -480,14 +547,18 @@ def analyze_passive_structure(nafobj, entityid, term_portrait):
             subj_additions = add_information_passive(nafobj, head[0])
 
     for obj_add in obj_additions:
-        fullrole = basicrole + ' ' + obj_add
+        obj_add = " ".join(obj_add)
+        fullrole = basicrole + ' ' + obj_add + ';' + headpos
         basicroles.append(fullrole)
     for su_add in subj_additions:
-        fullrole = basicrole + ' ' + su_add
+        su_add = " ".join(su_add)
+        fullrole = basicrole + ' ' + su_add + ';' + headpos
         basicroles.append(fullrole)
 
     for br in basicroles:
-        term_portrait.add_activity(br)
+        activity = br.split(';')
+        activity.append(headpos)
+        term_portrait.add_activity(activity)
 
 
 def analyze_coord_relations(nafobj, head_id, term_portrait):
@@ -563,30 +634,38 @@ def extract_sentence_portrait(nafobj, term):
     #create portrait for term with id as microportrait id
     tid = term.get_id()
     term_portrait = cMicroportait(tid)
+    term_portrait.set_pos(term.get_pos())
     #check if mwp
     mwp = False
     if tid in head2deps:
         for dep in head2deps.get(tid):
             if dep[1] == 'hd/app':
                 apposed_constituent = get_constituent(dep[0])
-                app_string = create_sequence_in_lemmas(nafobj, apposed_constituent)
-                term_portrait.add_label(app_string)
+                app_seq = create_sequence_in_lemmas(nafobj, apposed_constituent)
+                pos = get_pos_from_term(nafobj, dep[0])
+                app_seq.append(pos)
+                term_portrait.add_label(app_seq)
                 term_portrait.add_colabel(dep[0])
             elif dep[1] in ['mwp/mwp','hd/det']:
                 mwe_constituent = get_constituent(tid)
-                mwe_string = create_sequence_in_lemmas(nafobj, mwe_constituent)
-                term_portrait.add_label(mwe_string)
+                mwe_seq = create_sequence_in_lemmas(nafobj, mwe_constituent)
+                pos = get_pos_from_term(nafobj, tid)
+                mwe_seq.append(pos)
+                term_portrait.add_label(mwe_seq)
                 term_portrait.add_colabel(dep[0])
                 if 'mwp' in dep[1]:
                     mwp = True
             elif dep[1] in ['hd/mod','dp/dp','cnj/cnj','rhd/body','hd/vc','tag/nucl','nucl/tag','-- / --','whd/body','hd/me','sat/nucl','rhd/mod']:
                 modifier_constituent = get_constituent(dep[0])
-                modifier_string = create_sequence_in_lemmas(nafobj, modifier_constituent)
-                term_portrait.add_property(modifier_string)
+                modifier_seq = create_sequence_in_lemmas(nafobj, modifier_constituent)
+                pos = get_pos_from_term(nafobj, dep[0])
+                modifier_seq.append(pos)
+                term_portrait.add_property(modifier_seq)
             else:
                 print(dep[1], 'new dependency of entity')
     if not mwp:
-        term_portrait.add_label(term.get_lemma())
+
+        term_portrait.add_label([term.get_lemma(),term.get_pos()])
 
     if tid in dep2heads:
         get_activity_relations(nafobj, term_portrait)
@@ -667,26 +746,43 @@ def extract_sentence_level_portraits(nafobj):
 
     return sentence_level_portraits
 
+def create_utf8_lists(portraits):
+
+    updated_portraits = []
+    for portrait in portraits:
+        updated_portrait = []
+        for cell in portrait:
+            updated_portrait.append(cell.encode('utf8'))
+        updated_portraits.append(updated_portrait)
+
+    return updated_portraits
 
 def create_output(slportraits, prefix, outputfile):
 
-
-    portraits = set()
+    portraits = []
     for k, v in slportraits.items():
         mptid = prefix + k
         for label in v.labels:
-            label = label.replace(';',',')
-            portraits.add(mptid + ';label;' + label.encode('utf8') + '\n')
+            mylabel = [mptid, 'label']
+            mylabel += label
+            portraits.append(mylabel)
         for property in v.properties:
-            property = property.replace(';',',')
-            portraits.add(mptid + ';property;' + property.encode('utf8') + '\n')
+            my_property = [mptid, 'property']
+            my_property += property
+            portraits.append(my_property)
         #activity consists of role,event
         for activity in v.activities:
-            portraits.add(mptid + ';' + activity.encode('utf8') + '\n')
-    myout = open(outputfile, 'w')
-    for portrait in portraits:
-        myout.write(portrait)
-    myout.close()
+            my_activity = [mptid] + activity
+            portraits.append(my_activity)
+
+    #TODO write out as csv and fix encoding (utf8)
+    portraits = create_utf8_lists(portraits)
+    with open(outputfile, 'wb') as csvfile:
+        myout = csv.writer(csvfile, delimiter=';',
+                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        myout.writerow(['identifier','relation','description','pos'])
+        for portrait in portraits:
+            myout.writerow(portrait)
 
 def get_coreferences_from_naf(nafobj):
     '''
@@ -744,6 +840,13 @@ def already_merging(tid1, tid2, to_merge):
     return False
 
 
+def update_merged_dict(merged, previousk, newk):
+
+    for k, v in merged.items():
+        if v == previousk:
+            merged[k] = newk
+
+
 def merge_coreference_portraits(nafobj, sentence_level_portraits):
 
     #1. get coreferences from naf (dict each term identifier to all its coreferences
@@ -770,21 +873,32 @@ def merge_coreference_portraits(nafobj, sentence_level_portraits):
     merged = {}
     for k, v in to_merge.items():
         main_portrait = sentence_level_portraits.get(k)
+        if main_portrait is None:
+            replacement_id = merged.get(k)
+            main_portrait = sentence_level_portraits.get(replacement_id)
+            k = replacement_id
         for merger in v:
             merge_portrait = sentence_level_portraits.get(merger)
             if merge_portrait is None:
                 previously_merged = merged.get(merger)
+                if previously_merged == k:
+                    continue
                 merge_portrait = sentence_level_portraits.get(previously_merged)
                 merged[previously_merged] = k
-                del sentence_level_portraits[previously_merged]
+                update_merged_dict(merged, previously_merged, k)
+                if previously_merged in sentence_level_portraits:
+                    del sentence_level_portraits[previously_merged]
             else:
                 del sentence_level_portraits[merger]
-
-            main_portrait.labels += merge_portrait.labels
-            main_portrait.properties += merge_portrait.properties
-            main_portrait.activities += merge_portrait.activities
-            main_portrait.colabels += merge_portrait.colabels
-            merged[merger] = k
+            #FIXME: make sure nothing is going wrong here; if portraits should be merged, they should be merged
+            if not merge_portrait is None and not main_portrait is None:
+                main_portrait.labels += merge_portrait.labels
+                main_portrait.properties += merge_portrait.properties
+                main_portrait.activities += merge_portrait.activities
+                main_portrait.colabels += merge_portrait.colabels
+                merged[merger] = k
+            elif main_portrait is None and not merge_portrait is None:
+                main_portrait = merge_portrait
 
 
 
