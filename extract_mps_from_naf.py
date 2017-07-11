@@ -1,5 +1,9 @@
 import sys
-import csv
+
+if sys.version_info < (3, 0):
+    import unicodecsv as csv
+else:
+    import csv
 from collections import defaultdict
 import argparse
 from KafNafParserPy import *
@@ -777,16 +781,6 @@ def extract_sentence_level_portraits(nafobj):
 
     return sentence_level_portraits
 
-def create_utf8_lists(portraits):
-
-    updated_portraits = []
-    for portrait in portraits:
-        updated_portrait = []
-        for cell in portrait:
-            updated_portrait.append(cell.encode('utf8').decode())
-        updated_portraits.append(updated_portrait)
-
-    return updated_portraits
 
 def create_output(slportraits, prefix, outputfile):
 
@@ -806,14 +800,10 @@ def create_output(slportraits, prefix, outputfile):
             my_activity = [mptid] + activity
             portraits.append(my_activity)
 
-    #TODO write out as csv and fix encoding (utf8)
-    portraits = create_utf8_lists(portraits)
-    with open(outputfile, 'w') as csvfile:
-        myout = csv.writer(csvfile, delimiter=';',
-                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        myout.writerow(['identifier','relation','description','pos'])
-        for portrait in portraits:
-            myout.writerow(portrait)
+    myout = csv.writer(outputfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    myout.writerow(['identifier','relation','description','pos'])
+    for portrait in portraits:
+        myout.writerow(portrait)
 
 def get_coreferences_from_naf(nafobj):
     '''
