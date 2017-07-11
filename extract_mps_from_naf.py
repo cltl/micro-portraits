@@ -1,7 +1,7 @@
 import sys
 import csv
 from collections import defaultdict
-from optparse import OptionParser
+import argparse
 from KafNafParserPy import *
 
 
@@ -954,21 +954,12 @@ def extract_microportraits(inputfile, outputfile, surface=False):
 
 
 def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--surface', action='store_true', dest='surface', default=False)
+    parser.add_argument("inputfile", help="Input filename (NAF)")
 
-
-    if argv is None:
-        argv = sys.argv
-
-    parser = OptionParser()
-    parser.add_option('-s', '--surface', action='store_true', dest='surface', default=False)
-
-    options, args = parser.parse_args()
-
-    if len(args) < 2:
-        print('Usage: python extract_mps_from_naf.py (options) article.naf microportraits.csv')
-    else:
-        surface = options.surface
-        extract_microportraits(args[0], args[1], surface)
+    args = parser.parse_args()
+    extract_microportraits(args.inputfile, sys.stdout, args.surface)
 
 
 if __name__ == '__main__':
