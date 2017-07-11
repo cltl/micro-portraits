@@ -808,10 +808,10 @@ def create_output(slportraits, prefix, outputfile):
 
     #TODO write out as csv and fix encoding (utf8)
     portraits = create_utf8_lists(portraits)
-    with open(outputfile, 'w') as csvfile:
+    with open(outputfile, 'wb') as csvfile:
         myout = csv.writer(csvfile, delimiter=';',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        myout.writerow(['identifier','relation','description','pos'])
+        myout.writerow([b'identifier',b'relation',b'description',b'pos'])
         for portrait in portraits:
             myout.writerow(portrait)
 
