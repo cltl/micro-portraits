@@ -1,7 +1,9 @@
 import sys
 import csv
 from collections import defaultdict
+from optparse import OptionParser
 from KafNafParserPy import *
+
 
 
 target_pos = ['noun','name','pron']
@@ -89,6 +91,7 @@ def get_constituent(head_id):
 
     return dependents
 
+
 def create_sequence_in_lemmas(nafobj, term_ids):
     '''
     Function that takes a list of term ids and creates a list of lemmas ordered according to surface order
@@ -96,6 +99,7 @@ def create_sequence_in_lemmas(nafobj, term_ids):
     :param term_ids: list of term ids
     :return: ordered list of lemmas
     '''
+    global term2lemma
     offset2lemmas = {}
 
     for tid in term_ids:
@@ -103,7 +107,7 @@ def create_sequence_in_lemmas(nafobj, term_ids):
         first_token_wid = myterm.get_span().get_span_ids()[0]
         first_token = nafobj.get_token(first_token_wid)
         offset = int(first_token.get_offset())
-        offset2lemmas[offset] = myterm.get_lemma()
+        offset2lemmas[offset] = term2lemma.get(tid)
 
     #FIXME: make string with extra space dependent on end word and offset next word
     lemma_string = ''
@@ -156,12 +160,13 @@ def has_predicative_complement(head_id):
 
 def get_basics_and_constituents_from_coordinated(nafobj, head_id):
 
+    global term2lemma
     additions = []
     full_constituent = get_constituent_in_ordered_lemmas(nafobj, head_id)
     additions.append(full_constituent)
     if head_id in head2deps:
         for dep in head2deps.get(head_id):
-            headlemma = get_lemma_from_term(nafobj, dep[0])
+            headlemma = term2lemma.get(dep[0])
             additions.append(headlemma)
             if dep[0] in head2deps:
                 constituent = get_constituent_in_ordered_lemmas(nafobj, dep[0])
@@ -172,6 +177,7 @@ def get_basics_and_constituents_from_coordinated(nafobj, head_id):
 
 def get_predicative_info(nafobj, head_id):
 
+    global term2lemma
     for deprel in head2deps.get(head_id):
         gram_rel = deprel[1]
         if gram_rel == 'hd/predc':
@@ -181,7 +187,7 @@ def get_predicative_info(nafobj, head_id):
                 basicrole = basicroles[0]
             #predicative structure means no agent relation, property instead
             else:
-                basicrole = get_lemma_from_term(nafobj, deprel[0])
+                basicrole = term2lemma.get(deprel[0])
                 basicroles = [basicrole]
             # also add full constituent if longer than one word
                 if deprel[0] in head2deps:
@@ -192,12 +198,12 @@ def get_predicative_info(nafobj, head_id):
 def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
 
     #FIXME: make the roles lists right away
-    global head2deps
+    global head2deps, term2lemma
 
     #default: subject expresses agent
     basicrole = 'agent;'
     #add lemma of event
-    basicrole += get_lemma_from_term(nafobj, head_id)
+    basicrole += term2lemma.get(head_id)
     headpos = get_pos_from_term(nafobj, head_id)
     basicroles = [basicrole]
     predicative = False
@@ -220,8 +226,8 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
                             arg = " ".join(arg)
                         basicroles.append(basicrole + ' ' + arg)
                 else:
-                    headlemma = get_lemma_from_term(nafobj, head_id)
-                    arglemma = get_lemma_from_term(nafobj, deprel[0])
+                    headlemma = term2lemma.get(head_id)
+                    arglemma = term2lemma.get(deprel[0])
                     basicrole = 'agent;'
                     if not headlemma in ['heb'] and not argpos == 'noun':
                         basicrole += headlemma + ' '
@@ -244,7 +250,7 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
                             basicrole = " ".join(basicrole)
                         basicroles.append(basicrole + ' ' + arg)
                 else:
-                    arglemma = get_lemma_from_term(nafobj, deprel[0])
+                    arglemma = term2lemma.get(deprel[0])
                     if isinstance(basicrole, list):
                         basicrole = " ".join(basicrole)
 
@@ -276,38 +282,40 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
 
 def analyze_pobject(nafobj, head_id, term_portrait):
 
+    global term2lemma
+
     governing_rels = dep2heads.get(head_id)
     basic_role = None
     general_head = head_id
     #sometimes dep has no head, make sure not a None-type
     if governing_rels is None:
         governing_rels = []
-        termlemma = get_lemma_from_term(nafobj, head_id)
+        termlemma = term2lemma.get(head_id)
         #preposition is also head of clause in these cases
         basic_role = termlemma + '-rol;' + termlemma
     #FIXME; we now get one out of two in coordinated structures
     for deprel in governing_rels:
 
         if deprel[1] in ['hd/mod', 'hd/ld','hd/obj1','cmp/body','hd/predc','crd/mod']:
-            prep_lemma = get_lemma_from_term(nafobj, head_id)
+            prep_lemma = term2lemma.get(head_id)
             head_pos = get_pos_from_term(nafobj, deprel[0])
             if head_pos == 'vg':
                 lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                 basic_role = prep_lemma + '-rol;' + lemmas[0]
                 print('Coordination in prepositional structure; taking full constituent only')
             else:
-                head_lemma = get_lemma_from_term(nafobj, deprel[0])
+                head_lemma = term2lemma.get(deprel[0])
                 basic_role = prep_lemma + '-rol;' + head_lemma
             general_head = deprel[0]
         elif deprel[1] == 'hd/obj2':
-            prep_lemma = get_lemma_from_term(nafobj, head_id)
+            prep_lemma = term2lemma.get(head_id)
             head_pos = get_pos_from_term(nafobj, deprel[0])
             if head_pos == 'vg':
                 lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                 basic_role = 'recipient;' + lemmas[0]
                 print('Coordination in prepositional structure; taking full constituent only')
             else:
-                head_lemma = get_lemma_from_term(nafobj, deprel[0])
+                head_lemma = term2lemma.get(deprel[0])
                 basic_role = 'recepient;' + head_lemma
             general_head = deprel[0]
         elif not deprel[1] in ['hd/pc', 'crd/cnj', 'dp/dp']:
@@ -322,8 +330,9 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
     :param term_portrait: term project object
     :return:
     '''
+    global term2lemma
 
-    headlemma = get_lemma_from_term(nafobj, head_id)
+    headlemma = term2lemma.get(head_id)
     if not headlemma in ['ben','heb','doe']:
         basicrole = 'recepient;'
     else:
@@ -337,13 +346,13 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
         gramrel = deprel[1]
         if gramrel == 'hd/su' and 'recepient' in basicrole:
             specific_basis = 'recepient;' + headlemma
-            argpos = get_lemma_from_term(nafobj, deprel[0])
+            argpos = term2lemma.get(deprel[0])
             if argpos == 'vg':
                 args = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                 for arg in args:
                     basicroles.append(specific_basis + ' FROM ' + arg)
             else:
-                arglemma = get_lemma_from_term(nafobj, deprel[0])
+                arglemma = term2lemma.get(deprel[0])
                 if isinstance(specific_basis, list):
                     specific_basis = " ".join(specific_basis)
                 completer_role = specific_basis + ' FROM ' + arglemma
@@ -356,13 +365,13 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
                     completer_role = specific_basis + ' ' + constituent.replace(';',',')
                     basicroles.append(completer_role)
         elif gramrel in ['hd/su', 'hd/obj1','hd/predm','hd/se','hd/mod','hd/svp','hd/vc','hd/predc','hd/ld','dp/dp']:
-            argpos = get_lemma_from_term(nafobj, deprel[0])
+            argpos = term2lemma.get(deprel[0])
             if argpos == 'vg':
                 args = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                 for arg in args:
                     basicroles.append(basicrole + ' ' + arg)
             else:
-                arglemma = get_lemma_from_term(nafobj, deprel[0])
+                arglemma = term2lemma.get(deprel[0])
                 completer_role = basicrole + ' ' + arglemma
                 basicroles.append(completer_role)
                 if deprel[0] in head2deps:
@@ -417,6 +426,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
     :return:
     '''
 
+    global term2lemma
     headpos = get_pos_from_term(nafobj, head_id)
     basicroles = []
     if headpos in ['prep','comp']:
@@ -427,7 +437,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
     elif headpos in ['verb','adj']:
         basicrole = 'undergoer;'
         # add lemma of event
-        basicrole += get_lemma_from_term(nafobj, head_id)
+        basicrole += term2lemma.get(head_id)
         basicroles = [basicrole]
     if headpos in ['verb', 'adj', 'prep', 'comp'] and not basicrole is None:
 
@@ -443,7 +453,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                             arg = " ".join(arg)
                         basicroles.append(basicrole + ' BY ' + arg)
                 else:
-                    arglemma = get_lemma_from_term(nafobj, deprel[0])
+                    arglemma = term2lemma.get(deprel[0])
                     completer_role = basicrole + ' BY ' + arglemma
                     basicroles.append(completer_role)
                     if deprel[0] in head2deps:
@@ -460,7 +470,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                             arg = " ".join(arg)
                         basicroles.append(basicrole + ' ' + arg)
                 else:
-                    arglemma = get_lemma_from_term(nafobj, deprel[0])
+                    arglemma = term2lemma.get(deprel[0])
                     completer_role = basicrole + ' ' + arglemma
                     basicroles.append(completer_role)
                     if deprel[0] in head2deps:
@@ -498,6 +508,7 @@ def add_information_passive(nafobj, head_id):
     :param basicrole: basic relation where role is added
     :return:
     '''
+    global term2lemma
     basicroles = []
     for deprel in head2deps.get(head_id):
         # ignore entity that is agent
@@ -509,7 +520,7 @@ def add_information_passive(nafobj, head_id):
                 for arg in args:
                     basicroles.append(arg)
             else:
-                arglemma = get_lemma_from_term(nafobj, deprel[0])
+                arglemma = term2lemma.get(deprel[0])
                 basicroles.append(arglemma)
                 if deprel[0] in head2deps:
                     constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
@@ -538,7 +549,7 @@ def analyze_passive_structure(nafobj, entityid, term_portrait):
     #FIXME: add rule that makes sure agent is recovered as well
     for head in heads:
         if head[1] == 'hd/obj1':
-            event_lemma = get_lemma_from_term(nafobj, head[0])
+            event_lemma = term2lemma.get(head[0])
             basicrole += event_lemma
             basicroles.append(basicrole)
             #creates finished roles (we have the basic
@@ -665,7 +676,7 @@ def extract_sentence_portrait(nafobj, term):
                 print(dep[1], 'new dependency of entity')
     if not mwp:
 
-        term_portrait.add_label([term.get_lemma(),term.get_pos()])
+        term_portrait.add_label([term2lemma.get(tid),term.get_pos()])
 
     if tid in dep2heads:
         get_activity_relations(nafobj, term_portrait)
@@ -681,6 +692,22 @@ def get_term_info(nafobj):
         term2lemma[tid] = term.get_lemma()
 
 
+def get_token_info(nafobj):
+    '''
+    Function that stores token (surface form) for each term id
+    :param nafobj: input nafobj
+    :return: None
+    '''
+
+    global term2lemma
+    for term in nafobj.get_terms():
+        tid = term.get_id()
+        tspan = term.get_span().get_span_ids()
+        surface = ''
+        for wid in tspan:
+            token = nafobj.get_token(wid)
+            surface += token.get_text() + ' '
+        term2lemma[tid] = surface.rstrip().lower()
 
 
 def fill_headdep_dicts(nafobj):
@@ -699,14 +726,18 @@ def fill_headdep_dicts(nafobj):
         head2deps[head].append([mydep, relation])
 
 
-def create_info_dicts(nafobj):
+def create_info_dicts(nafobj, surface=False):
     '''
     Funtction that extracts information form naf which we will need a lot
     :param nafobj: input naf
     :return: None
     '''
     fill_headdep_dicts(nafobj)
-    get_term_info(nafobj)
+    #if surface, we're extracting tokens rather than lemmas
+    if surface:
+        get_token_info(nafobj)
+    else:
+        get_term_info(nafobj)
 
 
 def get_colabels(minimicroportraits):
@@ -902,7 +933,7 @@ def merge_coreference_portraits(nafobj, sentence_level_portraits):
 
 
 
-def extract_microportraits(inputfile, outputfile):
+def extract_microportraits(inputfile, outputfile, surface=False):
     '''
     Function that calls functions extracting components of microportraits and merges them
     :param inputfile: the input naf file
@@ -912,7 +943,7 @@ def extract_microportraits(inputfile, outputfile):
     global target_pos
 
     nafobj = KafNafParser(inputfile)
-    create_info_dicts(nafobj)
+    create_info_dicts(nafobj, surface)
     sentence_level_portraits = extract_sentence_level_portraits(nafobj)
     merge_coreference_portraits(nafobj, sentence_level_portraits)
     prefix = inputfile.rstrip('.naf')
@@ -928,10 +959,16 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    if len(argv) < 3:
-        print('Usage: python extract_mps_from_naf.py article.naf microportraits.csv')
+    parser = OptionParser()
+    parser.add_option('-s', '--surface', action='store_true', dest='surface', default=False)
+
+    options, args = parser.parse_args()
+
+    if len(args) < 2:
+        print('Usage: python extract_mps_from_naf.py (options) article.naf microportraits.csv')
     else:
-        extract_microportraits(argv[1], argv[2])
+        surface = options.surface
+        extract_microportraits(args[0], args[1], surface)
 
 
 if __name__ == '__main__':
