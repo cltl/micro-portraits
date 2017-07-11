@@ -267,7 +267,7 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
 
     if predicative:
         for brole in basicroles:
-            if isinstance(brole, str) or isinstance(brole, unicode):
+            if isinstance(brole, str):
                 my_property = brole.split(';')
             else:
                 my_property = brole
@@ -783,7 +783,7 @@ def create_utf8_lists(portraits):
     for portrait in portraits:
         updated_portrait = []
         for cell in portrait:
-            updated_portrait.append(cell.encode('utf8'))
+            updated_portrait.append(cell.encode('utf8').decode())
         updated_portraits.append(updated_portrait)
 
     return updated_portraits
@@ -808,10 +808,10 @@ def create_output(slportraits, prefix, outputfile):
 
     #TODO write out as csv and fix encoding (utf8)
     portraits = create_utf8_lists(portraits)
-    with open(outputfile, 'wb') as csvfile:
+    with open(outputfile, 'w') as csvfile:
         myout = csv.writer(csvfile, delimiter=';',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        myout.writerow([b'identifier',b'relation',b'description',b'pos'])
+        myout.writerow(['identifier','relation','description','pos'])
         for portrait in portraits:
             myout.writerow(portrait)
 
