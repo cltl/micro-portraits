@@ -7,8 +7,11 @@ else:
 from collections import defaultdict
 import argparse
 from KafNafParserPy import *
-
-
+import logging
+def _debug(*args):
+    # best to replace with proper "message {param}".format, but good enough for now
+    msg = " ".join(str(x) for x in args)
+    logging.debug(msg)
 
 target_pos = ['noun','name','pron']
 dep2heads = defaultdict(list)
@@ -267,7 +270,7 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
                         basicroles.append(completer_role)
             #ignore subject relation (= entity itself)
             elif not gram_rel in ['nucl/sat','hd/su', 'hd/svp', 'nucl/tag', 'tag/nucl', 'hd/sat','-- / --', 'hd/predc', 'cmp/body','hd/vc','sat/nucl']:
-                print(gram_rel, 'not covered in subject rules', deprel[0], head_id)
+                _debug(gram_rel, 'not covered in subject rules', deprel[0], head_id)
 
     if predicative:
         for brole in basicroles:
@@ -306,7 +309,7 @@ def analyze_pobject(nafobj, head_id, term_portrait):
             if head_pos == 'vg':
                 lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                 basic_role = prep_lemma + '-rol;' + lemmas[0]
-                print('Coordination in prepositional structure; taking full constituent only')
+                _debug('Coordination in prepositional structure; taking full constituent only')
             else:
                 head_lemma = term2lemma.get(deprel[0])
                 basic_role = prep_lemma + '-rol;' + head_lemma
@@ -317,13 +320,13 @@ def analyze_pobject(nafobj, head_id, term_portrait):
             if head_pos == 'vg':
                 lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                 basic_role = 'recipient;' + lemmas[0]
-                print('Coordination in prepositional structure; taking full constituent only')
+                _debug('Coordination in prepositional structure; taking full constituent only')
             else:
                 head_lemma = term2lemma.get(deprel[0])
                 basic_role = 'recepient;' + head_lemma
             general_head = deprel[0]
         elif not deprel[1] in ['hd/pc', 'crd/cnj', 'dp/dp']:
-            print(deprel, 'between PP and head')
+            _debug(deprel, 'between PP and head')
     return basic_role, general_head
 
 def analyze_obj2_relations(nafobj, head_id, term_portrait):
@@ -384,7 +387,7 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
                     completer_role = basicrole + ' ' + constituent.replace(';',',')
                     basicroles.append(completer_role)
         elif not gramrel in ['hd/obj2','cmp/body','sat/nucl','-- / --']:
-            print(gramrel, 'not covered yet for obj2')
+            _debug(gramrel, 'not covered yet for obj2')
 
     for brole in basicroles:
         activity = brole.split(';')
@@ -437,7 +440,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
         #FIXME: if preposition heads the sentence, obj1 is counted double
         basicrole, head_id = analyze_pobject(nafobj, head_id, term_portrait)
         basicroles = [basicrole]
-        #print(head_id, get_lemma_from_term(nafobj, head_id))
+        #_debug(head_id, get_lemma_from_term(nafobj, head_id))
     elif headpos in ['verb','adj']:
         basicrole = 'undergoer;'
         # add lemma of event
@@ -483,9 +486,9 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                         completer_role = basicrole + ' ' + constituent.replace(';',',')
                         basicroles.append(completer_role)
             elif not irrelevant_obj_occurrence(headpos, gram_rel, basicrole):
-                print(gram_rel, 'not covered in object1 rules', deprel[0])
+                _debug(gram_rel, 'not covered in object1 rules', deprel[0])
     elif not headpos == 'prep':
-        print(headpos, 'head of obj1')
+        _debug(headpos, 'head of obj1')
 
     for brole in basicroles:
         if brole is not None:
@@ -531,7 +534,7 @@ def add_information_passive(nafobj, head_id):
                     constituent = " ".join(constituent)
                     basicroles.append(constituent.replace(';',','))
         elif not gram_rel in ['hd/su', 'hd/obj1', 'hd/svp', 'nucl/tag', 'tag/nucl', 'hd/sat', '-- / --', 'hd/predc','hd/vc']:
-            print(gram_rel, 'not covered in rules for vc head passives')
+            _debug(gram_rel, 'not covered in rules for vc head passives')
     return basicroles
 
 def analyze_passive_structure(nafobj, entityid, term_portrait):
@@ -600,7 +603,7 @@ def analyze_coord_relations(nafobj, head_id, term_portrait):
             elif myhead[1] == 'crd/cnj':
                 analyze_coord_relations(nafobj, myhead[0], term_portrait)
             elif not myhead[1] in ['dp/dp','tag/nucl','hd/predc','hd/predm','hd/hd', 'hd/mod', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat']:
-                print(myhead[1], 'in coordinated relation', myhead[0])
+                _debug(myhead[1], 'in coordinated relation', myhead[0])
     else:
         analyze_passive_structure(nafobj, head_id, term_portrait)
 
@@ -620,7 +623,7 @@ def investigate_relations(nafobj, tid, term_portrait):
             elif head_rel[1] == 'hd/obj2':
                 analyze_obj2_relations(nafobj, head_rel[0], term_portrait)
             elif not head_rel[1] in ['hd/sup','rhd/body','hd/predc', 'hd/hd', 'hd/mod', 'hd/me', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat','tag/nucl']:
-                print(head_rel[1], 'relations investigation', head_rel[0])
+                _debug(head_rel[1], 'relations investigation', head_rel[0])
     else:
         analyze_passive_structure(nafobj, tid, term_portrait)
 
@@ -677,7 +680,7 @@ def extract_sentence_portrait(nafobj, term):
                 modifier_seq.append(pos)
                 term_portrait.add_property(modifier_seq)
             else:
-                print(dep[1], 'new dependency of entity')
+                _debug(dep[1], 'new dependency of entity')
     if not mwp:
 
         term_portrait.add_label([term2lemma.get(tid),term.get_pos()])
@@ -945,10 +948,15 @@ def extract_microportraits(inputfile, outputfile, surface=False):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--surface', action='store_true', dest='surface', default=False)
+    parser.add_argument('-s', '--surface', action='store_true', default=False)
+    parser.add_argument('-v', '--verbose', action='store_true', default=False)
     parser.add_argument("inputfile", help="Input filename (NAF)")
 
     args = parser.parse_args()
+    
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
+                        format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
+
     extract_microportraits(args.inputfile, sys.stdout, args.surface)
 
 
