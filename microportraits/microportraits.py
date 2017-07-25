@@ -276,14 +276,21 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
         for brole in basicroles:
             if isinstance(brole, str):
                 my_property = brole.split(';')
-            else:
+            elif isinstance(brole, list):
                 my_property = brole
+            else:
+                _debug('BROLE pb', brole)
             my_property.append(headpos)
-            term_portrait.add_property(my_property)
+            #FIXME find out why 'agent' roles end up here
+            if len(my_property) == 2:
+                term_portrait.add_property(my_property)
     else:
         for brole in basicroles:
             activity = brole.split(';')
             activity.append(headpos)
+
+            if not len(activity) == 3:
+                _debug('PROPERTY PLACE 2', my_property)
             term_portrait.add_activity(activity)
 
 
