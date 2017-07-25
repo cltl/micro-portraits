@@ -817,7 +817,8 @@ def create_output(slportraits, prefix, outputfile):
     myout.writerow(['identifier','relation','description','pos'])
     for portrait in portraits:
         if len(portrait) == 4:
-            myout.writerow(portrait)
+            if not portrait[3] == 'punct':
+                myout.writerow(portrait)
         else:
             _debug(portrait)
 
@@ -849,7 +850,7 @@ def retrieve_merge_candidates(my_coref_dict, sentence_level_portraits):
     '''
     Function that identifies which sentence level portraits may merge across sentences
     :param my_coref_dict: dictionary mapping each term id to all other term ids it corefers with
-    :param sentence_level_portraits: dictionary of term id and its sentencel level portraits
+    :param sentence_level_portraits: dictionary of term id and its sentence level portraits
     :return: list of term identifier keys fro mergreable portraits
     '''
 
