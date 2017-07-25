@@ -346,7 +346,7 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
         basicrole = 'hasrole;'
     basicrole += headlemma
 
-    basicroles = [headlemma]
+    basicroles = [basicrole]
     headpos = get_pos_from_term(nafobj, head_id)
 
     for deprel in head2deps.get(head_id):
@@ -392,6 +392,7 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
     for brole in basicroles:
         activity = brole.split(';')
         activity.append(headpos)
+
         term_portrait.add_activity(activity)
 
 
@@ -494,6 +495,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
         if brole is not None:
             activity = brole.split(';')
             activity.append(headpos)
+
             term_portrait.add_activity(activity)
 
 def is_passive(deprels):
@@ -566,16 +568,17 @@ def analyze_passive_structure(nafobj, entityid, term_portrait):
 
     for obj_add in obj_additions:
         obj_add = " ".join(obj_add)
-        fullrole = basicrole + ' ' + obj_add + ';' + headpos
+        fullrole = basicrole + ' ' + obj_add
         basicroles.append(fullrole)
     for su_add in subj_additions:
         su_add = " ".join(su_add)
-        fullrole = basicrole + ' ' + su_add + ';' + headpos
+        fullrole = basicrole + ' ' + su_add
         basicroles.append(fullrole)
 
     for br in basicroles:
         activity = br.split(';')
         activity.append(headpos)
+
         term_portrait.add_activity(activity)
 
 
@@ -806,7 +809,10 @@ def create_output(slportraits, prefix, outputfile):
     myout = csv.writer(outputfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     myout.writerow(['identifier','relation','description','pos'])
     for portrait in portraits:
-        myout.writerow(portrait)
+        if len(portrait) == 4:
+            myout.writerow(portrait)
+        else:
+            _debug(portrait)
 
 def get_coreferences_from_naf(nafobj):
     '''
