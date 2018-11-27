@@ -18,7 +18,9 @@ This work is described in:
 Fokkens, Antske, Nel Ruigrok, Camiel J. Beukeboom, Gagestein Sarah, and Wouter Van Attveldt. 
 "Studying Muslim Stereotyping through Microportrait Extraction." In LREC. 2018.
 
+Running the code:
 
+python -m microportraits inputfile.naf > outputfile.csv
 
 
 
