@@ -324,7 +324,7 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
             term_portrait.add_activity(activity)
 
 
-def analyze_pobject(nafobj, head_id, term_portrait):
+def analyze_pobject(nafobj, head_id):
 
     global term2lemma
 
@@ -434,7 +434,6 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
 
 
 def relevant_obj_cooccurence(headpos, gram_rel, basicrole):
-
     if headpos in ['verb', 'adj']:
         if gram_rel in ['hd/su', 'hd/ld', 'dp/dp', 'hd/pc', 'hd/pobj1', 'hd/obj2', 'hd/se', 'hd/mod','hd/predm','hd/vc']:
             return True
@@ -453,7 +452,7 @@ def irrelevant_obj_occurrence(headpos, gram_rel, basicrole):
         if gram_rel in ['hd/obj1', 'hd/svp', 'nucl/tag', 'tag/nucl', 'hd/sat', '-- / --', 'hd/predc', 'cmp/body', 'sat/nucl','nucl/sat','hd/det']:
             return True
     elif headpos in ['prep','comp']:
-        if gram_rel in ['dlink/nucl','hd/svp', 'nucl/tag', 'tag/nucl', 'hd/sat', '-- / --', 'hd/predc', 'cmp/body', 'sat/nucl','nucl/sat','hd/det']:
+        if gram_rel in ['dlink/nucl','hd/svp', 'nucl/tag', 'tag/nucl', 'hd/sat', '-- / --', 'hd/predc', 'cmp/body', 'sat/nucl','nucl/sat','hd/det','hd/app']:
             return True
         elif gram_rel == 'hd/pobj' and not 'recepient' in basicrole:
             return True
@@ -474,11 +473,10 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
     global term2lemma
     headpos = get_pos_from_term(nafobj, head_id)
     basicroles = []
+
     if headpos in ['prep','comp']:
-        #FIXME: if preposition heads the sentence, obj1 is counted double
-        basicrole, head_id = analyze_pobject(nafobj, head_id, term_portrait)
+        basicrole, head_id = analyze_pobject(nafobj, head_id)
         basicroles = [basicrole]
-        #_debug(head_id, get_lemma_from_term(nafobj, head_id))
     elif headpos in ['verb','adj']:
         basicrole = 'undergoer;'
         # add lemma of event
@@ -514,7 +512,8 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                         if isinstance(arg, list):
                             arg = " ".join(arg)
                         basicroles.append(basicrole + ' ' + arg)
-                else:
+                #FIXME: TO VERIFY: ARE THERE CASES WHERE THIS CONDITION GOES WRONG?
+                elif not argpos == headpos:
                     arglemma = term2lemma.get(deprel[0])
                     completer_role = basicrole + ' ' + arglemma
                     basicroles.append(completer_role)
@@ -524,7 +523,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
                         completer_role = basicrole + ' ' + constituent.replace(';',',')
                         basicroles.append(completer_role)
             elif not irrelevant_obj_occurrence(headpos, gram_rel, basicrole):
-                _debug(gram_rel, 'not covered in object1 rules', deprel[0])
+                _debug(gram_rel, 'not covered in object1 rules', deprel[0], head_id)
     elif not headpos == 'prep':
         _debug(headpos, 'head of obj1')
 
@@ -632,6 +631,7 @@ def analyze_coord_relations(nafobj, head_id, term_portrait):
         heads = []
         #FIXME: in these cases, microportraits are not merged (todo: what is label or property; same term should not be label or property more than once)
     if len(heads) == 1 or not is_passive(heads):
+        #FIXME: weird bug...
         for myhead in heads:
             myhead = heads[0]
             if myhead[1] == 'hd/su':
@@ -698,11 +698,8 @@ def extract_sentence_portrait(nafobj, term):
     #FIXME: parser output specific: create resources that map functions for resource to activity; also: no SRL information available yet...
     
     #modification, etc
-    debugdep = False
     if tid in head2deps:
         for dep in head2deps.get(tid):
-            if dep[0] in ['t_40','t_41']:
-                debugdep = True
             if dep[1] == 'hd/app':
                 apposed_constituent = get_constituent(dep[0])
                 app_seq = create_sequence_in_lemmas(nafobj, apposed_constituent)
@@ -711,7 +708,6 @@ def extract_sentence_portrait(nafobj, term):
                 term_portrait.add_label(app_seq)
                 term_portrait.add_colabel(dep[0])
             elif dep[1] in ['mwp/mwp','hd/det']:
-
                 if 'mwp' in dep[1]:
                     mwp = True
                     mwe_constituent = get_name_constituent(head2deps.get(tid), tid)
@@ -724,6 +720,7 @@ def extract_sentence_portrait(nafobj, term):
                     term_portrait.add_label(mwe_seq)
                 term_portrait.add_colabel(dep[0])
             elif dep[1] in ['hd/mod','dp/dp','cnj/cnj','rhd/body','hd/vc','tag/nucl','nucl/tag','-- / --','whd/body','hd/me','sat/nucl','rhd/mod']:
+
                 modifier_constituent = get_constituent(dep[0])
                 modifier_seq = create_sequence_in_lemmas(nafobj, modifier_constituent)
                 pos = get_pos_from_term(nafobj, dep[0])
@@ -815,12 +812,12 @@ def remove_duplicate_portraits(minimicroportraits):
     :param minimicroportraits: descriptions
     :return: updated descriptions (duplicates removed)
     '''
-    #FIXME: this function is a hack: code should be adapted to avoid this in the first place
     redundant_labels = get_colabels(minimicroportraits)
     updated_portraits = {}
     for k, v in minimicroportraits.items():
         if not k in redundant_labels:
             updated_portraits[k] = v
+        #FIXME: if redundant label introduces new information, this should be added
     return updated_portraits
 
 
