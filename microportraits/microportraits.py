@@ -44,6 +44,21 @@ class cMicroportait():
 
         self.labels.append(label)
 
+    def get_labels(self):
+
+        return self.labels
+
+    def is_duplicate_label(self, newlabel):
+        '''
+        Checks whether label already present. Avoids duplicate for mwp where components of names are siblings
+        :param newlabel: newly found label
+        :return:
+        '''
+        for label in self.labels:
+            if newlabel[0] == label[0]:
+                return True
+        return False
+
     def add_property(self, property):
 
         self.properties.append(property)
@@ -83,6 +98,8 @@ class cMicroportait():
     def get_pos_list(self):
 
         return self.pos_list
+
+
 
 
 def get_constituent(head_id):
@@ -131,6 +148,19 @@ def get_constituent_in_ordered_lemmas(nafobj, head_id):
 
     return lemmas
 
+def get_name_constituent(deps, tid):
+    '''
+    Special function for obtaining names (treating special case of name + apposition modifier
+    :param deps: dependencies of the head
+    :param tid: head identifier
+    :return: list of identifiers
+    '''
+
+    my_constituent = [tid]
+    for dep in deps:
+        if 'mwp' in dep[1]:
+            my_constituent.append(dep[0])
+    return my_constituent
 
 def get_lemma_from_term(nafobj, term_id):
     '''
@@ -665,8 +695,14 @@ def extract_sentence_portrait(nafobj, term):
     term_portrait.set_pos(term.get_pos())
     #check if mwp
     mwp = False
+    #FIXME: parser output specific: create resources that map functions for resource to activity; also: no SRL information available yet...
+    
+    #modification, etc
+    debugdep = False
     if tid in head2deps:
         for dep in head2deps.get(tid):
+            if dep[0] in ['t_40','t_41']:
+                debugdep = True
             if dep[1] == 'hd/app':
                 apposed_constituent = get_constituent(dep[0])
                 app_seq = create_sequence_in_lemmas(nafobj, apposed_constituent)
@@ -675,14 +711,18 @@ def extract_sentence_portrait(nafobj, term):
                 term_portrait.add_label(app_seq)
                 term_portrait.add_colabel(dep[0])
             elif dep[1] in ['mwp/mwp','hd/det']:
-                mwe_constituent = get_constituent(tid)
+
+                if 'mwp' in dep[1]:
+                    mwp = True
+                    mwe_constituent = get_name_constituent(head2deps.get(tid), tid)
+                else:
+                    mwe_constituent = get_constituent(tid)
                 mwe_seq = create_sequence_in_lemmas(nafobj, mwe_constituent)
                 pos = get_pos_from_term(nafobj, tid)
                 mwe_seq.append(pos)
-                term_portrait.add_label(mwe_seq)
+                if not term_portrait.is_duplicate_label(mwe_seq):
+                    term_portrait.add_label(mwe_seq)
                 term_portrait.add_colabel(dep[0])
-                if 'mwp' in dep[1]:
-                    mwp = True
             elif dep[1] in ['hd/mod','dp/dp','cnj/cnj','rhd/body','hd/vc','tag/nucl','nucl/tag','-- / --','whd/body','hd/me','sat/nucl','rhd/mod']:
                 modifier_constituent = get_constituent(dep[0])
                 modifier_seq = create_sequence_in_lemmas(nafobj, modifier_constituent)
@@ -695,6 +735,7 @@ def extract_sentence_portrait(nafobj, term):
 
         term_portrait.add_label([term2lemma.get(tid),term.get_pos()])
 
+    #activity relations FIXME: split these in different functions, so that srl-based or syntax based can be options
     if tid in dep2heads:
         get_activity_relations(nafobj, term_portrait)
     return term_portrait
@@ -736,6 +777,7 @@ def fill_headdep_dicts(nafobj):
     global dep2heads, head2deps
 
     for dep in nafobj.get_dependencies():
+        #because output Dutch parser does not guarantee that dependents have just one head, dep2heads also has list as value
         head = dep.get_from()
         mydep = dep.get_to()
         relation = dep.get_function()
@@ -749,6 +791,7 @@ def create_info_dicts(nafobj, surface=False):
     :param nafobj: input naf
     :return: None
     '''
+    #FIXME: move to local variables or use basic objects for storing info
     fill_headdep_dicts(nafobj)
     #if surface, we're extracting tokens rather than lemmas
     if surface:
@@ -767,7 +810,12 @@ def get_colabels(minimicroportraits):
 
 
 def remove_duplicate_portraits(minimicroportraits):
-
+    '''
+    Removes redudant labels
+    :param minimicroportraits: descriptions
+    :return: updated descriptions (duplicates removed)
+    '''
+    #FIXME: this function is a hack: code should be adapted to avoid this in the first place
     redundant_labels = get_colabels(minimicroportraits)
     updated_portraits = {}
     for k, v in minimicroportraits.items():
@@ -888,6 +936,7 @@ def update_merged_dict(merged, previousk, newk):
 def merge_coreference_portraits(nafobj, sentence_level_portraits):
 
     #1. get coreferences from naf (dict each term identifier to all its coreferences
+    #FIXME: create evaluation data for this function and make sure it works properly.
 
     my_coref_dict = get_coreferences_from_naf(nafobj)
     to_merge = defaultdict(list)
@@ -950,6 +999,7 @@ def extract_microportraits(inputfile, outputfile, surface=False):
     global target_pos
 
     nafobj = KafNafParser(inputfile)
+    #language independent: creates dep2heads, head2deps, term2lemmas (todo: create better storage functions)
     create_info_dicts(nafobj, surface)
     sentence_level_portraits = extract_sentence_level_portraits(nafobj)
     merge_coreference_portraits(nafobj, sentence_level_portraits)
@@ -964,6 +1014,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--surface', action='store_true', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
+    #   parser.add_argument('-l', '--language', action='store_true', default="nl")
     parser.add_argument("inputfile", help="Input filename (NAF)")
 
     args = parser.parse_args()
