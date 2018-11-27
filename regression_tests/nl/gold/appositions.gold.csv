@@ -1,0 +1,65 @@
+identifier;relation;description;pos
+regression_tests/nl/naf/appositions.goldt_3;label;zijn advocaat Pieter;noun
+regression_tests/nl/naf/appositions.goldt_3;label;Pieter;name
+regression_tests/nl/naf/appositions.goldt_3;label;advocaat;noun
+regression_tests/nl/naf/appositions.goldt_9;label;zijn advocaat Pieter De Vries;noun
+regression_tests/nl/naf/appositions.goldt_9;label;Pieter De Vries;name
+regression_tests/nl/naf/appositions.goldt_9;label;advocaat;noun
+regression_tests/nl/naf/appositions.goldt_14;label;dit;noun
+regression_tests/nl/naf/appositions.goldt_14;property;bron;verb
+regression_tests/nl/naf/appositions.goldt_14;property;de bron waaruit deze informatie afkomstig zijn opinie_stuk artikel en interview;verb
+regression_tests/nl/naf/appositions.goldt_17;label;de bron waaruit deze informatie afkomstig zijn opinie_stuk artikel en interview;noun
+regression_tests/nl/naf/appositions.goldt_17;label;opinie_stuk artikel en interview;vg
+regression_tests/nl/naf/appositions.goldt_17;label;bron;noun
+regression_tests/nl/naf/appositions.goldt_17;property;waaruit deze informatie afkomstig zijn;pp
+regression_tests/nl/naf/appositions.goldt_20;label;deze informatie;noun
+regression_tests/nl/naf/appositions.goldt_20;label;informatie;noun
+regression_tests/nl/naf/appositions.goldt_20;property;afkomstig;verb
+regression_tests/nl/naf/appositions.goldt_20;property;waaruit deze informatie afkomstig zijn;verb
+regression_tests/nl/naf/appositions.goldt_24;label;opinie_stuk;noun
+regression_tests/nl/naf/appositions.goldt_26;label;artikel;noun
+regression_tests/nl/naf/appositions.goldt_28;label;interview;noun
+regression_tests/nl/naf/appositions.goldt_30;label;zij;pron
+regression_tests/nl/naf/appositions.goldt_30;property;hoogleraar;verb
+regression_tests/nl/naf/appositions.goldt_30;property;hoogleraar methode van recht en rechtswetenschap;verb
+regression_tests/nl/naf/appositions.goldt_32;label;methode van recht en rechtswetenschap;noun
+regression_tests/nl/naf/appositions.goldt_32;label;hoogleraar;noun
+regression_tests/nl/naf/appositions.goldt_35;label;recht;noun
+regression_tests/nl/naf/appositions.goldt_35;van-rol;methode;prep
+regression_tests/nl/naf/appositions.goldt_35;van-rol;methode van recht en rechtswetenschap;prep
+regression_tests/nl/naf/appositions.goldt_37;label;rechtswetenschap;noun
+regression_tests/nl/naf/appositions.goldt_37;van-rol;methode;prep
+regression_tests/nl/naf/appositions.goldt_37;van-rol;methode van recht en rechtswetenschap;prep
+regression_tests/nl/naf/appositions.goldt_39;label;Anneke de Jong de heldin van Utrecht;name
+regression_tests/nl/naf/appositions.goldt_39;label;Anneke de Jong de heldin van Utrecht;name
+regression_tests/nl/naf/appositions.goldt_39;label;de heldin van Utrecht;noun
+regression_tests/nl/naf/appositions.goldt_39;agent;komen;verb
+regression_tests/nl/naf/appositions.goldt_39;agent;komen ook;verb
+regression_tests/nl/naf/appositions.goldt_46;label;Utrecht;name
+regression_tests/nl/naf/appositions.goldt_46;van-rol;heldin;prep
+regression_tests/nl/naf/appositions.goldt_46;van-rol;heldin van Utrecht;prep
+regression_tests/nl/naf/appositions.goldt_52;label;dit huis in Rotterdam ons eigen huis;noun
+regression_tests/nl/naf/appositions.goldt_52;label;ons eigen huis;noun
+regression_tests/nl/naf/appositions.goldt_52;label;huis;noun
+regression_tests/nl/naf/appositions.goldt_52;property;in Rotterdam;prep
+regression_tests/nl/naf/appositions.goldt_52;undergoer;kopen;verb
+regression_tests/nl/naf/appositions.goldt_52;undergoer;kopen BY we;verb
+regression_tests/nl/naf/appositions.goldt_52;undergoer;kopen geleden;verb
+regression_tests/nl/naf/appositions.goldt_52;undergoer;kopen 5 jaar geleden;verb
+regression_tests/nl/naf/appositions.goldt_54;label;Rotterdam;name
+regression_tests/nl/naf/appositions.goldt_54;in-rol;huis;prep
+regression_tests/nl/naf/appositions.goldt_54;in-rol;huis in Rotterdam;prep
+regression_tests/nl/naf/appositions.goldt_61;label;we;pron
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen huis;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen dit huis in Rotterdam ons eigen huis;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen geleden;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen 5 jaar geleden;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;hebben kopen;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen huis;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen dit huis in Rotterdam ons eigen huis;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen geleden;verb
+regression_tests/nl/naf/appositions.goldt_61;agent;kopen 5 jaar geleden;verb
+regression_tests/nl/naf/appositions.goldt_63;label;5 jaar;noun
+regression_tests/nl/naf/appositions.goldt_63;label;jaar;noun
