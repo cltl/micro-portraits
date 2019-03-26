@@ -8,6 +8,7 @@ from collections import defaultdict
 import argparse
 from KafNafParserPy import *
 import logging
+
 def _debug(*args):
     # best to replace with proper "message {param}".format, but good enough for now
     msg = " ".join(str(x) for x in args)
@@ -812,6 +813,8 @@ def remove_duplicate_portraits(minimicroportraits):
     :param minimicroportraits: descriptions
     :return: updated descriptions (duplicates removed)
     '''
+    #FIXME: steps:
+    #1. instead of simply removing, go through colabels, a) add information not there yet b) add to redundant (not counting twice)
     redundant_labels = get_colabels(minimicroportraits)
     updated_portraits = {}
     for k, v in minimicroportraits.items():
@@ -1007,7 +1010,7 @@ def extract_microportraits(inputfile, outputfile, surface=False):
 
 
 
-def main(argv=None):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--surface', action='store_true', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
@@ -1015,9 +1018,11 @@ def main(argv=None):
     parser.add_argument("inputfile", help="Input filename (NAF)")
 
     args = parser.parse_args()
-    
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
-                        format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
+
+    if args.verbose:
+        logging.basicConfig(filename='debug.log',level=logging.DEBUG, format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
+   # else:
+   #     logging.basicConfig(level=logging.INFO,format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
 
     extract_microportraits(args.inputfile, sys.stdout, args.surface)
 
