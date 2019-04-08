@@ -21,6 +21,82 @@ dep_extractor = None
 term2lemma = {}
 
 
+class cDescription():
+    '''
+    Class that captures structure of individual descriptions
+    '''
+
+    def __init__(self, head_id, head_form, kind, pos, mention_id=None):
+        '''
+        Initiates description
+        :param head_id: term id of the head
+        :param head_form: lemma or surface form of head
+        :param kind: kind of description (label, property, activity)
+        '''
+
+        if mention_id is None:
+            mention_id = head_id
+        self.id = head_id
+        self.mention_id = mention_id
+        self.form = head_form
+        self.type = kind
+        self.pos = pos
+        self.string_representations = [head_form]
+        self.dependents = []
+        self.constituent_components = []
+
+    def add_string_representation(self, string_rep):
+
+        self.string_representations.append(string_rep)
+
+    def add_dependent(self, dependent):
+
+        self.dependents.append(dependent)
+
+    def add_constituent_component(self, constituent_component):
+
+        self.constituent_components.append(constituent_component)
+
+class cDependent():
+    '''
+    Class that captures structure of dependents for multiword descriptions
+    '''
+
+    def __init__(self, dep_id, form, rel, pos):
+        '''
+        Initiates dependent
+        :param dep_id: identifier of dependent (term id)
+        :param form: surface form or lemma
+        :param rel: dependency relation to head
+        '''
+
+        self.id = dep_id
+        self.form = form
+        self.rel = rel
+        self.pos = pos
+        self.constituent_components = []
+
+    def add_constituent_component(self, constituent):
+
+        self.constituent_components.append(constituent)
+
+class cConstituentComponent():
+    '''
+    Class with most basic properties of a word
+    '''
+
+    def __init__(self, form, tid, pos):
+        '''
+        Initiates constituent id
+        :param form: surface form or lemma
+        :param tid: identifier of component (term_id)
+        :param pos: pos tag
+        '''
+        self.form = form
+        self.id = tid
+        self.pos = pos
+
+
 class cMicroportait():
     '''
     Class that captures microportrait information
@@ -113,8 +189,25 @@ def get_constituent(head_id):
 
     dependents = dep_extractor.get_full_dependents(head_id, [])
     dependents.append(head_id)
-
     return dependents
+
+
+def get_constituent_revised(head_id, nafobj):
+    '''
+    Function that creates the largest constituent headed by a given term
+    :param head_id: id of head of constituent
+    :return: list of cConstiuent objects (id, lemma and pos of terms making up the constituent)
+    '''
+    global dep_extractor
+
+    constituents = []
+    for dep in dep_extractor.get_full_dependents(head_id, []):
+        term = nafobj.get_term(dep)
+        constituent = cConstituentComponent(term.get_lemma(),dep,term.get_pos())
+        constituents.append(constituent)
+    return constituents
+
+
 
 
 def create_sequence_in_lemmas(nafobj, term_ids):
@@ -216,38 +309,80 @@ def get_basics_and_constituents_from_coordinated(nafobj, head_id):
 def get_predicative_info(nafobj, head_id):
 
     global term2lemma
+    descriptions = []
+    basicroles = []
     for deprel in head2deps.get(head_id):
         gram_rel = deprel[1]
         if gram_rel == 'hd/predc':
             pos = get_pos_from_term(nafobj, deprel[0])
             if pos == 'vg':
                 basicroles = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
-                basicrole = basicroles[0]
+                form = basicroles[0]
             #predicative structure means no agent relation, property instead
             else:
-                basicrole = term2lemma.get(deprel[0])
-                basicroles = [basicrole]
+                form = term2lemma.get(deprel[0])
+                description = cDescription(deprel[0],form,'property',pos)
+                descriptions.append(description)
+
+                ###NEXT: look at how to create `constituent information'
             # also add full constituent if longer than one word
                 if deprel[0] in head2deps:
                     constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
                     basicroles.append(constituent)
-    return basicrole, basicroles
+    return form, descriptions
 
-def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
+
+def analyze_subject_relations_new(nafobj, head_id, term_portrait):
+    '''
+
+    :param nafobj:
+    :param head_id:
+    :param term_portait:
+    :return:
+    '''
+
+    global term2lemma, head2deps
+
+    pos = get_pos_from_term(nafobj,head_id)
+    if has_predicative_complement(head_id):
+        add_rows_for_predicative_description(head_id,pos,nafobj,term_portrait)
+
+    else:
+        dtype = 'agent'
+        dependency_rel = 'hd/su'
+        add_rows_for_activity_description(head_id, nafobj, term_portrait, dependency_rel, dtype)
+
+
+       # add_rows_for_description(head_id, nafobj, head2deps, term_portrait, relation)
+
+    #headlemma = term2lemma.get(head_id)
+    #headpos = get_pos_from_term(nafobj, head_id)
+
+
+
+
+def analyze_subject_relations_old(nafobj, head_id, term_portrait):
 
     #FIXME: make the roles lists right away
     global head2deps, term2lemma
 
+    #mptid,description.id,description.type,word.form,word.pos,word.id,'constituent'
+
+
     #default: subject expresses agent
-    basicrole = 'agent;'
+    basicrole = 'agent'
     #add lemma of event
-    basicrole += term2lemma.get(head_id)
+    headlemma = term2lemma.get(head_id)
     headpos = get_pos_from_term(nafobj, head_id)
+
+    description = cDescription(head_id, headlemma, basicrole, headpos)
+
+    descriptions = [description]
     basicroles = [basicrole]
     predicative = False
 
     if has_predicative_complement(head_id):
-        basicrole, basicroles = get_predicative_info(nafobj, head_id)
+        headlemma, descriptions = get_predicative_info(nafobj, head_id)
         predicative = True
 
     if head_id in head2deps:
@@ -272,7 +407,7 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
                     basicrole += arglemma
                     basicroles = [basicrole]
                     if not argpos == 'noun':
-                        analyze_subject_relations(nafobj, deprel[0], term_portrait, True)
+                        analyze_subject_relations(nafobj, deprel[0], term_portrait)
                     elif deprel[0] in head2deps:
                         constituent = get_constituent_in_ordered_lemmas(nafobj, deprel[0])
                         constituent = " ".join(constituent)
@@ -304,31 +439,33 @@ def analyze_subject_relations(nafobj, head_id, term_portrait, vcsub=False):
                 _debug(gram_rel, 'not covered in subject rules', deprel[0], head_id)
 
     if predicative:
-        for brole in basicroles:
-            if isinstance(brole, str):
-                my_property = brole.split(';')
-            elif isinstance(brole, list):
-                my_property = brole
-            else:
-                _debug('BROLE pb', brole)
-            my_property.append(headpos)
+        for brole in descriptions:
+            if isinstance(brole, cDescription):
+                term_portrait.add_property(brole)
+           # if isinstance(brole, str):
+           #     my_property = brole.split(';')
+           # elif isinstance(brole, list):
+           #     my_property = brole
+           # else:
+           #     _debug('BROLE pb', brole)
+           # my_property.append(headpos)
             #FIXME find out why 'agent' roles end up here
-            if len(my_property) == 2:
-                term_portrait.add_property(my_property)
-    else:
-        for brole in basicroles:
-            activity = brole.split(';')
-            activity.append(headpos)
+          #  if len(my_property) == 2:
+                ###HEREHEREHEREsee if we have all info: mptid,description.id,description.type,word.form,word.pos,word.id,'constituent'
+           #     term_portrait.add_property(my_property)
+ #   else:
+ #       for brole in basicroles:
+ #           activity = brole.split(';')
+ #           activity.append(headpos)
 
-            if not len(activity) == 3:
-                _debug('PROPERTY PLACE 2', my_property)
-            term_portrait.add_activity(activity)
+  #          if not len(activity) == 3:
+  #              _debug('PROPERTY PLACE 2', activity)
+  #          term_portrait.add_activity(activity)
 
 
 def analyze_pobject(nafobj, head_id):
 
     global term2lemma
-
     governing_rels = dep2heads.get(head_id)
     basic_role = None
     general_head = head_id
@@ -337,37 +474,47 @@ def analyze_pobject(nafobj, head_id):
         governing_rels = []
         termlemma = term2lemma.get(head_id)
         #preposition is also head of clause in these cases
-        basic_role = termlemma + '-rol;' + termlemma
+        basic_role = termlemma + '-rol' #+ termlemma
     #FIXME; we now get one out of two in coordinated structures
     for deprel in governing_rels:
-
-        if deprel[1] in ['hd/mod', 'hd/ld','hd/obj1','cmp/body','hd/predc','crd/mod']:
+        if deprel[1] in ['hd/mod', 'hd/ld','hd/obj1','cmp/body','hd/predc','crd/mod','hd/pc']:
             prep_lemma = term2lemma.get(head_id)
             head_pos = get_pos_from_term(nafobj, deprel[0])
             if head_pos == 'vg':
                 lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
-                basic_role = prep_lemma + '-rol;' + lemmas[0]
+                basic_role = prep_lemma + '-rol' #+ lemmas[0]
                 _debug('Coordination in prepositional structure; taking full constituent only')
             else:
                 head_lemma = term2lemma.get(deprel[0])
-                basic_role = prep_lemma + '-rol;' + head_lemma
+                basic_role = prep_lemma + '-rol' #+ head_lemma
             general_head = deprel[0]
         elif deprel[1] == 'hd/obj2':
-            prep_lemma = term2lemma.get(head_id)
-            head_pos = get_pos_from_term(nafobj, deprel[0])
-            if head_pos == 'vg':
-                lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
-                basic_role = 'recipient;' + lemmas[0]
-                _debug('Coordination in prepositional structure; taking full constituent only')
-            else:
-                head_lemma = term2lemma.get(deprel[0])
-                basic_role = 'recepient;' + head_lemma
+            basic_role = 'recipient'
             general_head = deprel[0]
-        elif not deprel[1] in ['hd/pc', 'crd/cnj', 'dp/dp']:
+        elif not deprel[1] in ['crd/cnj', 'dp/dp']:
             _debug(deprel, 'between PP and head')
+    #print(basic_role, general_head)
     return basic_role, general_head
 
+
 def analyze_obj2_relations(nafobj, head_id, term_portrait):
+    '''
+    Function that creates involvement in activities based on obj2 relations
+    :param nafobj: input naf
+    :param head_id: identifier of verb
+    :param term_portrait: term project object
+    :return:
+    '''
+    headlemma = get_lemma_from_term(nafobj, head_id)
+    if not headlemma in ['ben','heb','doe']:
+        dtype = 'recipient'
+    else:
+        dtype = 'has_role'
+
+    add_rows_for_activity_description(head_id, nafobj, term_portrait,'hd/obj2',dtype)
+
+
+def analyze_obj2_relations_old(nafobj, head_id, term_portrait):
     '''
     Function that creates involvement in activities based on obj2 relations
     :param nafobj: input naf
@@ -379,7 +526,7 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
 
     headlemma = term2lemma.get(head_id)
     if not headlemma in ['ben','heb','doe']:
-        basicrole = 'recepient;'
+        basicrole = 'recipient;'
     else:
         basicrole = 'hasrole;'
     basicrole += headlemma
@@ -389,8 +536,8 @@ def analyze_obj2_relations(nafobj, head_id, term_portrait):
 
     for deprel in head2deps.get(head_id):
         gramrel = deprel[1]
-        if gramrel == 'hd/su' and 'recepient' in basicrole:
-            specific_basis = 'recepient;' + headlemma
+        if gramrel == 'hd/su' and 'recipient' in basicrole:
+            specific_basis = 'recipient;' + headlemma
             argpos = term2lemma.get(deprel[0])
             if argpos == 'vg':
                 args = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
@@ -441,9 +588,9 @@ def relevant_obj_cooccurence(headpos, gram_rel, basicrole):
     elif headpos == 'prep':
         if gram_rel in ['hd/su', 'hd/ld', 'dp/dp', 'hd/pc', 'hd/se', 'hd/mod','hd/predm','hd/vc', 'hd/obj1']:
             return True
-        elif gram_rel == 'hd/pobj' and 'recepient' in basicrole:
+        elif gram_rel == 'hd/pobj' and 'recipient' in basicrole:
             return True
-        elif gram_rel == 'hd/obj2' and not 'recepient' in basicrole:
+        elif gram_rel == 'hd/obj2' and not 'recipient' in basicrole:
             return True
     return False
 
@@ -455,14 +602,32 @@ def irrelevant_obj_occurrence(headpos, gram_rel, basicrole):
     elif headpos in ['prep','comp']:
         if gram_rel in ['dlink/nucl','hd/svp', 'nucl/tag', 'tag/nucl', 'hd/sat', '-- / --', 'hd/predc', 'cmp/body', 'sat/nucl','nucl/sat','hd/det','hd/app']:
             return True
-        elif gram_rel == 'hd/pobj' and not 'recepient' in basicrole:
+        elif gram_rel == 'hd/pobj' and not 'recipient' in basicrole:
             return True
-        elif gram_rel == 'hd/obj2' and 'recepient' in basicrole:
+        elif gram_rel == 'hd/obj2' and 'recipient' in basicrole:
             return True
     return False
 
 
-def analyze_object_relations(nafobj, head_id, term_portrait):
+def analyze_object_relations_new(nafobj, head_id, term_portrait, deprel):
+    '''
+    Function for activity roles based on object relations
+    :param nafobj:
+    :param head_id:
+    :param term_portrait:
+    :return:
+    '''
+
+    headpos = get_pos_from_term(nafobj, head_id)
+    if headpos in ['verb','adj']:
+        add_rows_for_activity_description(head_id, nafobj, term_portrait, deprel,'undergoer')
+    elif headpos in ['prep','comp']:
+        #TODOPOB
+        dtype, updated_id = analyze_pobject(nafobj, head_id)
+        add_rows_for_activity_description(updated_id, nafobj, term_portrait, deprel, dtype, [head_id])
+
+
+def analyze_object_relations_old(nafobj, head_id, term_portrait):
     '''
     Function that creates involvement in activities based on object relations
     :param nafobj:
@@ -483,6 +648,7 @@ def analyze_object_relations(nafobj, head_id, term_portrait):
         # add lemma of event
         basicrole += term2lemma.get(head_id)
         basicroles = [basicrole]
+
     if headpos in ['verb', 'adj', 'prep', 'comp'] and not basicrole is None:
 
         for deprel in head2deps.get(head_id):
@@ -576,7 +742,26 @@ def add_information_passive(nafobj, head_id):
             _debug(gram_rel, 'not covered in rules for vc head passives')
     return basicroles
 
+
+
 def analyze_passive_structure(nafobj, entityid, term_portrait):
+    '''
+    Function to analyze passive structure
+    :param nafobj: input naf
+    :param head_id: identifier of head
+    :param term_portrait: microportrait object
+    :return:
+    '''
+
+    heads = dep2heads.get(entityid)
+    #FIXME: add rule that makes sure agent is recovered as well
+    for head in heads:
+        if head[1] == 'hd/obj1':
+            add_rows_for_activity_description(head[0],nafobj,term_portrait,'hd/obj1','undergoer')
+
+
+
+def analyze_passive_structure_old(nafobj, entityid, term_portrait):
     '''
     Function to analyze passive structure
     :param nafobj: input naf
@@ -588,16 +773,20 @@ def analyze_passive_structure(nafobj, entityid, term_portrait):
     if len(heads) > 0:
         headpos = get_pos_from_term(nafobj, heads[0][0])
 
-    basicrole = 'undergoer;'
+    basicrole = 'undergoer'
     basicroles = []
     #obj_additions = []
     #subj_additions = []
     #FIXME: add rule that makes sure agent is recovered as well
+    ####TODO TODO: adapt function to new format
     for head in heads:
         if head[1] == 'hd/obj1':
+            add_rows_for_activity_description(head[0],nafobj,term_portrait,'hd/obj1',basicrole)
             event_lemma = term2lemma.get(head[0])
             basicrole += event_lemma
             basicroles.append(basicrole)
+            #event_lemma is form,
+
             #creates finished roles (we have the basic
             obj_additions = add_information_passive(nafobj, head[0])
         elif head[1] == 'hd/su':
@@ -615,11 +804,39 @@ def analyze_passive_structure(nafobj, entityid, term_portrait):
     for br in basicroles:
         activity = br.split(';')
         activity.append(headpos)
-
-        term_portrait.add_activity(activity)
+ #   print(basicroles)
+  #      term_portrait.add_activity(activity)
 
 
 def analyze_coord_relations(nafobj, head_id, term_portrait):
+    '''
+
+    :param nafobj:
+    :param head_id:
+    :param term_portrait:
+    :return:
+    '''
+    heads = dep2heads.get(head_id)
+    if heads is None:
+        heads = []
+        # FIXME: in these cases, microportraits are not merged (todo: what is label or property; same term should not be label or property more than once)
+    if len(heads) == 1 or not is_passive(heads):
+        # FIXME: weird bug...
+        myhead = heads[0]
+        if myhead[1] == 'hd/su':
+            analyze_subject_relations_new(nafobj, myhead[0], term_portrait)
+        elif myhead[1] == 'hd/obj1':
+            analyze_object_relations_new(nafobj, myhead[0], term_portrait, 'hd/obj1')
+     #   elif myhead[1] == 'hd/obj2':
+     #       analyze_obj2_relations(nafobj, myhead[0], term_portrait)
+        elif myhead[1] == 'crd/cnj':
+            analyze_coord_relations(nafobj, myhead[0], term_portrait)
+        elif not myhead[1] in ['dp/dp', 'tag/nucl', 'hd/predc', 'hd/predm', 'hd/hd', 'hd/mod', 'cmp/body', 'hd/app',
+                                   'mwp/mwp', '-- / --', 'dp/dp', 'nucl/sat']:
+            _debug(myhead[1], 'in coordinated relation', myhead[0])
+
+
+def analyze_coord_relations_old(nafobj, head_id, term_portrait):
     '''
     Function that deals with activities for coordinated structures
     :param nafobj: input naf
@@ -656,16 +873,18 @@ def investigate_relations(nafobj, tid, term_portrait):
     if len(heads) == 1 or not is_passive(heads):
         for head_rel in heads:
             if head_rel[1] == 'hd/su':
-                analyze_subject_relations(nafobj, head_rel[0], term_portrait)
+                analyze_subject_relations_new(nafobj, head_rel[0], term_portrait)
             elif head_rel[1] in ['hd/obj1','hd/se','hd/pobj1','hd/vc','dlink/nucl']:
-                analyze_object_relations(nafobj, head_rel[0], term_portrait)
-            elif head_rel[1] in ['crd/cnj','cnj/cnj']:
-                analyze_coord_relations(nafobj, head_rel[0], term_portrait)
+                analyze_object_relations_new(nafobj, head_rel[0], term_portrait, head_rel[1])
+                ###TODO: check if needed..
+           # elif head_rel[1] in ['crd/cnj','cnj/cnj']:
+           #     analyze_coord_relations(nafobj, head_rel[0], term_portrait)
             elif head_rel[1] == 'hd/obj2':
                 analyze_obj2_relations(nafobj, head_rel[0], term_portrait)
-            elif not head_rel[1] in ['hd/sup','rhd/body','hd/predc', 'hd/hd', 'hd/mod', 'hd/me', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat','tag/nucl']:
+            elif not head_rel[1] in ['hd/sup','rhd/body','hd/predc', 'hd/hd', 'hd/mod', 'hd/me', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat','tag/nucl','crd/cnj','cnj/cnj']:
                 _debug(head_rel[1], 'relations investigation', head_rel[0])
     else:
+        #print('contains passive', tid, get_lemma_from_term(nafobj, tid))
         analyze_passive_structure(nafobj, tid, term_portrait)
 
 
@@ -680,6 +899,117 @@ def get_activity_relations(nafobj, term_portrait):
 
     tid = term_portrait.get_identifier()
     investigate_relations(nafobj, tid, term_portrait)
+
+
+def add_rows_for_single_description(head_id, pos, nafobj, term_portrait,dtype, mention_id=None):
+    '''
+    Function that adds all rows belonging to a single constituent
+    :param head_id: identifier of head
+    :param pos: pos of head
+    :param nafobj: nafobj containing info
+    :param term_portrait: portrait we're updating
+    :return: None
+    '''
+
+    if mention_id is None:
+        mention_id = head_id
+
+    my_constituent = get_constituent_revised(head_id, nafobj)
+    lemma = get_lemma_from_term(nafobj, head_id)
+
+    description = cDescription(head_id, lemma, dtype, pos, mention_id)
+    description.constituent_components = my_constituent
+
+    if dtype == 'label':
+        term_portrait.add_label(description)
+        term_portrait.add_colabel(head_id)
+    else:
+        term_portrait.add_property(description)
+
+def add_rows_for_predicative_description(head_id, pos, nafobj, term_portrait):
+    '''
+    Function for predicative descriptions
+    :param head_id:
+    :param pos:
+    :param nafobj:
+    :param head2deps:
+    :return:
+    '''
+    global head2deps
+
+    for dependent in head2deps.get(head_id):
+        if dependent[1] == 'hd/predc':
+            deppos = get_pos_from_term(nafobj, dependent[0])
+            if deppos == 'vg':
+                for dep in head2deps.get(dependent[0]):
+                    pos = get_pos_from_term(nafobj, dep[0])
+                    #add_rows_for_predicative_description(dep[0], pos, nafobj, term_portrait)
+                    add_rows_for_single_description(dep[0], pos, nafobj, term_portrait, 'property', head_id)
+            else:
+                add_rows_for_single_description(dependent[0], pos, nafobj, term_portrait, 'property', head_id)
+
+
+def create_dependent(main_id, main_rel, nafobj):
+    '''
+    Function that creates dependencies for activity relation
+    :param dep_id:
+    :param dep_rel:
+    :param nafobj:
+    :return:
+    '''
+    global head2deps
+
+    form = get_lemma_from_term(nafobj, main_id)
+    pos = get_pos_from_term(nafobj, main_id)
+    dependency = cDependent(main_id, form, main_rel, pos)
+    if main_id in head2deps:
+        dependency.constituent_components = get_constituent_revised(main_id, nafobj)
+    #print(dependency.constituent_component)
+    return dependency
+
+
+def add_rows_for_activity_description(head_id, nafobj, term_portrait, dependency_rel, dtype, excluded=[]):
+    '''
+
+    :param head_id:
+    :param nafobj:
+    :param term_portrait:
+    :param dependency:
+    :return:
+    '''
+    global head2deps
+    ##in one go? see if possible....sub
+    ##add_rows_for_description(head_id, nafobj, head2deps, term_portrait, relation)
+
+    lemma = get_lemma_from_term(nafobj, head_id)
+    pos = get_pos_from_term(nafobj, head_id)
+    description = cDescription(head_id, lemma, dtype, pos)
+
+    for dependent in head2deps.get(head_id):
+        if not (dependent[0] in excluded or dependent[1] == dependency_rel):
+            dependent_object = create_dependent(dependent[0], dependent[1], nafobj)
+            description.add_dependent(dependent_object)
+
+    term_portrait.add_activity(description)
+
+
+def add_rows_for_description(head_id, nafobj, head2deps, term_portrait,dtype):
+    '''
+    Function
+    :param head_id:
+    :param nafobj:
+    :param head2deps:
+    :param term_portrait:
+    :return:
+    '''
+    pos = get_pos_from_term(nafobj, head_id)
+    if pos == 'vg':
+        for dep in head2deps.get(head_id):
+            pos = get_pos_from_term(nafobj, dep[0])
+            add_rows_for_single_description(dep[0],pos, nafobj, term_portrait,dtype,head_id)
+    else:
+        add_rows_for_single_description(head_id, pos, nafobj, term_portrait,dtype)
+
 
 
 def extract_sentence_portrait(nafobj, term):
@@ -701,39 +1031,25 @@ def extract_sentence_portrait(nafobj, term):
     #modification, etc
     if tid in head2deps:
         for dep in head2deps.get(tid):
-            if dep[1] == 'hd/app':
-                apposed_constituent = get_constituent(dep[0])
-                app_seq = create_sequence_in_lemmas(nafobj, apposed_constituent)
-                pos = get_pos_from_term(nafobj, dep[0])
-                app_seq.append(pos)
-                term_portrait.add_label(app_seq)
-                term_portrait.add_colabel(dep[0])
-            elif dep[1] in ['mwp/mwp','hd/det']:
-                if 'mwp' in dep[1]:
-                    mwp = True
-                    mwe_constituent = get_name_constituent(head2deps.get(tid), tid)
-                else:
-                    mwe_constituent = get_constituent(tid)
-                mwe_seq = create_sequence_in_lemmas(nafobj, mwe_constituent)
-                pos = get_pos_from_term(nafobj, tid)
-                mwe_seq.append(pos)
-                if not term_portrait.is_duplicate_label(mwe_seq):
-                    term_portrait.add_label(mwe_seq)
-                term_portrait.add_colabel(dep[0])
+            #term = nafobj.get_term(dep[0])
+            if dep[1] in ['mwp/mwp','hd/det','hd/app']:
+
+                add_rows_for_description(dep[0],nafobj,head2deps,term_portrait,'label')
+
             elif dep[1] in ['hd/mod','dp/dp','cnj/cnj','rhd/body','hd/vc','tag/nucl','nucl/tag','-- / --','whd/body','hd/me','sat/nucl','rhd/mod']:
 
-                modifier_constituent = get_constituent(dep[0])
-                modifier_seq = create_sequence_in_lemmas(nafobj, modifier_constituent)
-                pos = get_pos_from_term(nafobj, dep[0])
-                modifier_seq.append(pos)
-                term_portrait.add_property(modifier_seq)
+                add_rows_for_description(dep[0],nafobj,head2deps,term_portrait,'property')
+
             else:
                 _debug(dep[1], 'new dependency of entity')
     if not mwp:
-
-        term_portrait.add_label([term2lemma.get(tid),term.get_pos()])
+        description = cDescription(tid,term2lemma.get(tid),'label',term.get_pos())
+        term_portrait.add_label(description)
 
     #activity relations FIXME: split these in different functions, so that srl-based or syntax based can be options
+
+    ###TEMP-OFF
+
     if tid in dep2heads:
         get_activity_relations(nafobj, term_portrait)
     return term_portrait
@@ -843,29 +1159,70 @@ def extract_sentence_level_portraits(nafobj):
     return sentence_level_portraits
 
 
+def derive_constituent_rows(mptid, constituent,mention_id,dtype, head_id=None):
+    rows = []
+    if head_id is None:
+        head_id = mention_id
+    for word in constituent:
+        row = [mptid,mention_id,dtype,word.form,word.pos,word.id,'constituent',head_id]
+        rows.append(row)
+    return rows
+
+
+def derive_rows_from_description(description, mptid):
+
+    #first define description head word
+    #
+    #    TODO self.dependents = []
+
+    if isinstance(description, list):
+        print(description)
+        #rows = [description]
+    else:
+        head_row = [mptid,description.mention_id,description.type,description.form,description.pos,description.id,'head',description.mention_id]
+        rows = [head_row]
+        if len(description.constituent_components)> 0:
+            constituent_rows = derive_constituent_rows(mptid,description.constituent_components,description.mention_id,description.type,description.mention_id)
+            rows += constituent_rows
+        for dependency in description.dependents:
+            row = [mptid,description.mention_id,description.type,dependency.form,dependency.pos,dependency.id,dependency.rel,dependency.id]
+            rows.append(row)
+            constituent_rows = derive_constituent_rows(mptid,dependency.constituent_components,description.mention_id,description.type,dependency.id)
+            rows += constituent_rows
+
+    return rows
+
+
 def create_output(slportraits, prefix, outputfile):
 
     portraits = []
     for k, v in slportraits.items():
         mptid = prefix + k
         for label in v.labels:
-            mylabel = [mptid, 'label']
-            mylabel += label
-            portraits.append(mylabel)
+            #cDescription
+
+            label_rows = derive_rows_from_description(label, mptid)
+            portraits += label_rows
+           # mylabel = [mptid, 'label']
+           # mylabel += label
         for property in v.properties:
-            my_property = [mptid, 'property']
-            my_property += property
-            portraits.append(my_property)
+
+            property_rows = derive_rows_from_description(property, mptid)
+           # my_property = [mptid, 'property']
+           # my_property += property
+            portraits += property_rows
         #activity consists of role,event
         for activity in v.activities:
-            my_activity = [mptid] + activity
-            portraits.append(my_activity)
+           activity_rows = derive_rows_from_description(activity, mptid)
+           portraits += activity_rows
+           # my_activity = [mptid] + activity
+           # portraits.append(my_activity)
 
     myout = csv.writer(outputfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    myout.writerow(['identifier','relation','description','pos'])
+    myout.writerow(['mp_identifier','mention_id','relation','description','pos','term_id','dep_rel','constituent_head'])
     for portrait in portraits:
-        if len(portrait) == 4:
-            if not portrait[3] == 'punct':
+        if len(portrait) == 8:
+            if not portrait[4] == 'punct':
                 myout.writerow(portrait)
         else:
             _debug(portrait)
