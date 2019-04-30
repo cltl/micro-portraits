@@ -467,6 +467,8 @@ def analyze_pobject(nafobj, head_id):
 
     global term2lemma
     governing_rels = dep2heads.get(head_id)
+
+
     basic_role = None
     general_head = head_id
     #sometimes dep has no head, make sure not a None-type
@@ -481,17 +483,21 @@ def analyze_pobject(nafobj, head_id):
             prep_lemma = term2lemma.get(head_id)
             head_pos = get_pos_from_term(nafobj, deprel[0])
             if head_pos == 'vg':
-                lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
+               # lemmas = get_basics_and_constituents_from_coordinated(nafobj, deprel[0])
                 basic_role = prep_lemma + '-rol' #+ lemmas[0]
                 _debug('Coordination in prepositional structure; taking full constituent only')
             else:
-                head_lemma = term2lemma.get(deprel[0])
+                #head_lemma = term2lemma.get(deprel[0])
                 basic_role = prep_lemma + '-rol' #+ head_lemma
             general_head = deprel[0]
         elif deprel[1] == 'hd/obj2':
             basic_role = 'recipient'
             general_head = deprel[0]
-        elif not deprel[1] in ['crd/cnj', 'dp/dp']:
+        #elif deprel[1] in ['crd/cnj']:
+        #    basic_role, general_head = analyze_pobject(nafobj, deprel[0])
+        #    basic_role, general_head = analyze_pobject(nafobj, general_head)
+        #    print(basic_role, general_head)
+        elif not deprel[1] in ['crd/cnj','dp/dp']:
             _debug(deprel, 'between PP and head')
     #print(basic_role, general_head)
     return basic_role, general_head
@@ -624,7 +630,8 @@ def analyze_object_relations_new(nafobj, head_id, term_portrait, deprel):
     elif headpos in ['prep','comp']:
         #TODOPOB
         dtype, updated_id = analyze_pobject(nafobj, head_id)
-        add_rows_for_activity_description(updated_id, nafobj, term_portrait, deprel, dtype, [head_id])
+        if dtype is not None:
+            add_rows_for_activity_description(updated_id, nafobj, term_portrait, deprel, dtype, [head_id])
 
 
 def analyze_object_relations_old(nafobj, head_id, term_portrait):
@@ -827,8 +834,8 @@ def analyze_coord_relations(nafobj, head_id, term_portrait):
             analyze_subject_relations_new(nafobj, myhead[0], term_portrait)
         elif myhead[1] == 'hd/obj1':
             analyze_object_relations_new(nafobj, myhead[0], term_portrait, 'hd/obj1')
-     #   elif myhead[1] == 'hd/obj2':
-     #       analyze_obj2_relations(nafobj, myhead[0], term_portrait)
+        elif myhead[1] == 'hd/obj2':
+            analyze_obj2_relations(nafobj, myhead[0], term_portrait)
         elif myhead[1] == 'crd/cnj':
             analyze_coord_relations(nafobj, myhead[0], term_portrait)
         elif not myhead[1] in ['dp/dp', 'tag/nucl', 'hd/predc', 'hd/predm', 'hd/hd', 'hd/mod', 'cmp/body', 'hd/app',
