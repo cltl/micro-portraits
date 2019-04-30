@@ -877,8 +877,8 @@ def investigate_relations(nafobj, tid, term_portrait):
             elif head_rel[1] in ['hd/obj1','hd/se','hd/pobj1','hd/vc','dlink/nucl']:
                 analyze_object_relations_new(nafobj, head_rel[0], term_portrait, head_rel[1])
                 ###TODO: check if needed..
-           # elif head_rel[1] in ['crd/cnj','cnj/cnj']:
-           #     analyze_coord_relations(nafobj, head_rel[0], term_portrait)
+            elif head_rel[1] in ['crd/cnj','cnj/cnj']:
+                analyze_coord_relations(nafobj, head_rel[0], term_portrait)
             elif head_rel[1] == 'hd/obj2':
                 analyze_obj2_relations(nafobj, head_rel[0], term_portrait)
             elif not head_rel[1] in ['hd/sup','rhd/body','hd/predc', 'hd/hd', 'hd/mod', 'hd/me', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat','tag/nucl','crd/cnj','cnj/cnj']:
@@ -1097,7 +1097,6 @@ def fill_headdep_dicts(nafobj):
         relation = dep.get_function()
         dep2heads[mydep].append([head, relation])
         head2deps[head].append([mydep, relation])
-
 
 def create_info_dicts(nafobj, surface=False):
     '''
