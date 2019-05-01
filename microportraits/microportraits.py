@@ -1375,13 +1375,17 @@ def extract_microportraits(inputfile, outputfile, surface=False):
 
 def main():
     parser = argparse.ArgumentParser()
+    #TODO the descriptions can contain surface forms or lemmas, default is lemmas
     parser.add_argument('-s', '--surface', action='store_true', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
-    #   parser.add_argument('-l', '--language', action='store_true', default="nl")
+    #TODO multiple languages will be supported. Default is Dutch
+    parser.add_argument('-l','--language', default='nl')
+    #TODO roles in activities can be derived from dependencies or from srl output, default is dependencies
+    parser.add_argument('-r', '--rolebases', default='dep')
+
     parser.add_argument("inputfile", help="Input filename (NAF)")
 
     args = parser.parse_args()
-
     if args.verbose:
         logging.basicConfig(filename='debug.log',level=logging.DEBUG, format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
    # else:
