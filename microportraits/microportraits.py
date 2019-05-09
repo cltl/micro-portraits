@@ -827,7 +827,7 @@ def analyze_coord_relations(nafobj, head_id, term_portrait):
     if heads is None:
         heads = []
         # FIXME: in these cases, microportraits are not merged (todo: what is label or property; same term should not be label or property more than once)
-    if len(heads) == 1 or not is_passive(heads):
+    if len(heads) == 1 or (len(heads) > 0 and not is_passive(heads)):
         # FIXME: weird bug...
         myhead = heads[0]
         if myhead[1] == 'hd/su':
