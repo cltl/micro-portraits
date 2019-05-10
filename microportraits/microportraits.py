@@ -1011,9 +1011,10 @@ def add_rows_for_description(head_id, nafobj, head2deps, term_portrait,dtype):
     '''
     pos = get_pos_from_term(nafobj, head_id)
     if pos == 'vg':
-        for dep in head2deps.get(head_id):
-            pos = get_pos_from_term(nafobj, dep[0])
-            add_rows_for_single_description(dep[0],pos, nafobj, term_portrait,dtype,head_id)
+        if head_id in head2deps:
+            for dep in head2deps.get(head_id):
+                pos = get_pos_from_term(nafobj, dep[0])
+                add_rows_for_single_description(dep[0],pos, nafobj, term_portrait,dtype,head_id)
     else:
         add_rows_for_single_description(head_id, pos, nafobj, term_portrait,dtype)
 
