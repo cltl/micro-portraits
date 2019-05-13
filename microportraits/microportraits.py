@@ -1350,13 +1350,12 @@ def get_coreferences_from_naf(nafobj):
             corefering_ids = []
             for coref_span in coref.get_spans():
                 for target in coref_span:
-                    if target.is_head() is not None:
+                    if target.is_head():
                         corefering_ids.append(target.get_id())
             for tid in corefering_ids:
                 for coreftid in corefering_ids:
                     if not coreftid == tid:
                         coref_dict[tid].append(coreftid)
-
     return coref_dict
 
 
@@ -1407,6 +1406,7 @@ def merge_coreference_portraits(nafobj, sentence_level_portraits):
     my_coref_dict = get_coreferences_from_naf(nafobj)
     to_merge = defaultdict(list)
     merge_candidates = retrieve_merge_candidates(my_coref_dict, sentence_level_portraits)
+
     for possible_merge in merge_candidates:
         merge_ids = [possible_merge] + sentence_level_portraits.get(possible_merge).get_colabels()
         merging_with = []
