@@ -922,6 +922,22 @@ def identify_applicable_heads(heads, dep2heads):
             if deeper_head_rel == 'hd/vc':
                 return [head_rel]
 
+def is_coordinated(heads, dep2heads):
+    '''
+    Function that checks whether duplicated heads are part of coordinated structure
+    :param heads: the heads of a dependent
+    :param dep2heads: object that links a dependent to its heads
+    :return: boolean
+    '''
+    coordinated = True
+    for headrel in heads:
+        if headrel[0] in dep2heads:
+            for head_of_head_rel in dep2heads.get(headrel[0]):
+                if not head_of_head_rel[1] == 'crd/cnj':
+                    return False
+        else:
+            return False
+    return coordinated
 
 
 
@@ -934,28 +950,31 @@ def investigate_relations(nafobj, tid, term_portrait):
     heads = dep2heads.get(tid)
     if len(heads) > 1:
         if duplicate_heads(heads):
-            hierarchy = identify_applicable_heads(heads, dep2heads)
-            if hierarchy is not None:
-                heads = hierarchy
+            if not is_coordinated(heads, dep2heads):
+                hierarchy = identify_applicable_heads(heads, dep2heads)
+                if hierarchy is not None:
+                    heads = hierarchy
+                else:
+                    heads = []
         elif is_passive(heads):
             analyze_passive_structure(nafobj, tid, term_portrait)
-        #else:
+            heads = []
         #    print(heads)
-    if len(heads) == 1:
-        for head_rel in heads:
-            if head_rel[1] == 'hd/su':
-                analyze_subject_relations_new(nafobj, head_rel[0], term_portrait)
-            elif head_rel[1] in ['hd/obj1','hd/se','hd/pobj1','hd/vc','dlink/nucl']:
-                analyze_object_relations_new(nafobj, head_rel[0], term_portrait, head_rel[1])
+    #if len(heads) == 1:
+    for head_rel in heads:
+        if head_rel[1] == 'hd/su':
+            analyze_subject_relations_new(nafobj, head_rel[0], term_portrait)
+        elif head_rel[1] in ['hd/obj1','hd/se','hd/pobj1','hd/vc','dlink/nucl']:
+            analyze_object_relations_new(nafobj, head_rel[0], term_portrait, head_rel[1])
                 ###TODO: check if needed..
-            elif head_rel[1] in ['crd/cnj','cnj/cnj']:
-                analyze_coord_relations(nafobj, head_rel[0], term_portrait)
-            elif head_rel[1] == 'hd/obj2':
-                analyze_obj2_relations(nafobj, head_rel[0], term_portrait)
-            elif not head_rel[1] in ['hd/sup','rhd/body','hd/predc', 'hd/hd', 'hd/mod', 'hd/me', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat','tag/nucl','crd/cnj','cnj/cnj']:
-                _debug(head_rel[1], 'relations investigation', head_rel[0])
-    else:
-        _debug('No heads found in relations extraction (should not occur, in principle only labels with head are targeted')
+        elif head_rel[1] in ['crd/cnj','cnj/cnj']:
+            analyze_coord_relations(nafobj, head_rel[0], term_portrait)
+        elif head_rel[1] == 'hd/obj2':
+            analyze_obj2_relations(nafobj, head_rel[0], term_portrait)
+        elif not head_rel[1] in ['hd/sup','rhd/body','hd/predc', 'hd/hd', 'hd/mod', 'hd/me', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat','tag/nucl','crd/cnj','cnj/cnj']:
+            _debug(head_rel[1], 'relations investigation', head_rel[0])
+  #  else:
+    #    _debug('No heads found in relations extraction (should not occur, in principle only labels with head are targeted')
         #print('contains passive', tid, get_lemma_from_term(nafobj, tid))
         #analyze_passive_structure(nafobj, tid, term_portrait)
 
