@@ -346,7 +346,6 @@ def analyze_subject_relations_new(nafobj, head_id, term_portrait):
     pos = get_pos_from_term(nafobj,head_id)
     if has_predicative_complement(head_id):
         add_rows_for_predicative_description(head_id,pos,nafobj,term_portrait)
-
     else:
         dtype = 'agent'
         dependency_rel = 'hd/su'
@@ -922,7 +921,7 @@ def identify_applicable_heads(heads, dep2heads):
             if deeper_head_rel == 'hd/vc':
                 return [head_rel]
 
-def is_coordinated(heads, dep2heads):
+def is_coordinated_or_control_structure(heads, dep2heads):
     '''
     Function that checks whether duplicated heads are part of coordinated structure
     :param heads: the heads of a dependent
@@ -930,16 +929,33 @@ def is_coordinated(heads, dep2heads):
     :return: boolean
     '''
     coordinated = True
+    coordination_or_control_relations = ['crd/cnj','rhd/body','cmp/body','sat/nucl','whd/body']
     for headrel in heads:
         if headrel[0] in dep2heads:
             for head_of_head_rel in dep2heads.get(headrel[0]):
-                if not head_of_head_rel[1] == 'crd/cnj':
-                    return False
-        else:
-            return False
+                #FIXME: simplification
+                if not head_of_head_rel[1] in coordination_or_control_relations:
+                    if head_of_head_rel[0] in dep2heads:
+                        one_up = dep2heads.get(head_of_head_rel[0])
+                        if len(one_up) == 1 and one_up[0][1] in coordination_or_control_relations:
+                            coordinated = True
+                        else:
+                            coordinated = False
+                    else:
+                        coordinated = False
     return coordinated
 
-
+def check_which_heads_to_maintain(heads):
+    '''
+    Function that selects heads among alternative based on their function
+    :param heads: the head ids and their relation
+    :return:
+    '''
+    selected_relations = []
+    for headrel in heads:
+        if not headrel[1] == 'hd/mod':
+            selected_relations.append(headrel)
+    return selected_relations
 
 def investigate_relations(nafobj, tid, term_portrait):
 
@@ -949,18 +965,20 @@ def investigate_relations(nafobj, tid, term_portrait):
 
     heads = dep2heads.get(tid)
     if len(heads) > 1:
+        heads = check_which_heads_to_maintain(heads)
+        #TODO if not same heads and not passives
         if duplicate_heads(heads):
-            if not is_coordinated(heads, dep2heads):
+            if not is_coordinated_or_control_structure(heads, dep2heads):
                 hierarchy = identify_applicable_heads(heads, dep2heads)
                 if hierarchy is not None:
                     heads = hierarchy
                 else:
+                    print(heads)
                     heads = []
         elif is_passive(heads):
             analyze_passive_structure(nafobj, tid, term_portrait)
             heads = []
         #    print(heads)
-    #if len(heads) == 1:
     for head_rel in heads:
         if head_rel[1] == 'hd/su':
             analyze_subject_relations_new(nafobj, head_rel[0], term_portrait)
