@@ -872,12 +872,76 @@ def analyze_coord_relations_old(nafobj, head_id, term_portrait):
     else:
         analyze_passive_structure(nafobj, head_id, term_portrait)
 
+def duplicate_heads(heads):
+    '''
+    Function that checks whether all heads of a dependent are of the same type
+    :param heads:
+    :return: Boolean
+    '''
+    refence_rel = heads[0][1]
+    for headrel in heads:
+        if headrel[1] != refence_rel:
+            return False
+    return True
+
+def extract_ids_from_multiple_heads(heads):
+    '''
+    Function that extracts ids from multiple heads
+    :param heads: list of heads
+    :return: set of head ids
+    '''
+    rels = set()
+    for headrel in heads:
+        rels.add(headrel[0])
+    return rels
+
+def is_deeper_head_with_relation(head_id, rels, dep2heads):
+    '''
+    Function that finds out which of two shared heads is dependent on the other
+    :param heads: list of head and relation
+    :param dep2heads: general object that links dependents to their heads
+    :return:
+    '''
+    if head_id in dep2heads:
+        for new_head in dep2heads.get(head_id):
+            if new_head[0] in rels:
+                return new_head[1]
+
+
+def identify_applicable_heads(heads, dep2heads):
+    '''
+    Function that identifies which heads should be maintained for extracting roles
+    :param heads: list of heads of dependent under analyses
+    :param dep2heads: object that links any term to its heads
+    :return:
+    '''
+    if duplicate_heads(heads):
+        for head_rel in heads:
+            rels = extract_ids_from_multiple_heads(heads)
+            deeper_head_rel = is_deeper_head_with_relation(head_rel[0], rels, dep2heads)
+            if deeper_head_rel == 'hd/vc':
+                return [head_rel]
+
+
 
 
 def investigate_relations(nafobj, tid, term_portrait):
 
+    ###UNDER CONSTRUCTION: check what happens if multiple heads.
+    ###TODO: CLEAN CODE
+    ###TODO: see what we want to do with modals: add something that incorporates tense/modality?
+
     heads = dep2heads.get(tid)
-    if len(heads) == 1 or not is_passive(heads):
+    if len(heads) > 1:
+        if duplicate_heads(heads):
+            hierarchy = identify_applicable_heads(heads, dep2heads)
+            if hierarchy is not None:
+                heads = hierarchy
+        elif is_passive(heads):
+            analyze_passive_structure(nafobj, tid, term_portrait)
+        #else:
+        #    print(heads)
+    if len(heads) == 1:
         for head_rel in heads:
             if head_rel[1] == 'hd/su':
                 analyze_subject_relations_new(nafobj, head_rel[0], term_portrait)
@@ -891,8 +955,9 @@ def investigate_relations(nafobj, tid, term_portrait):
             elif not head_rel[1] in ['hd/sup','rhd/body','hd/predc', 'hd/hd', 'hd/mod', 'hd/me', 'cmp/body', 'hd/app', 'mwp/mwp', '-- / --', 'dp/dp','nucl/sat','tag/nucl','crd/cnj','cnj/cnj']:
                 _debug(head_rel[1], 'relations investigation', head_rel[0])
     else:
+        _debug('No heads found in relations extraction (should not occur, in principle only labels with head are targeted')
         #print('contains passive', tid, get_lemma_from_term(nafobj, tid))
-        analyze_passive_structure(nafobj, tid, term_portrait)
+        #analyze_passive_structure(nafobj, tid, term_portrait)
 
 
 def get_activity_relations(nafobj, term_portrait):
