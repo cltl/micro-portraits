@@ -973,7 +973,6 @@ def investigate_relations(nafobj, tid, term_portrait):
                 if hierarchy is not None:
                     heads = hierarchy
                 else:
-                    print(heads)
                     heads = []
         elif is_passive(heads):
             analyze_passive_structure(nafobj, tid, term_portrait)
