@@ -973,7 +973,6 @@ def investigate_relations(nafobj, tid, term_portrait):
                 if hierarchy is not None:
                     heads = hierarchy
                 else:
-                    print(heads)
                     heads = []
         elif is_passive(heads):
             analyze_passive_structure(nafobj, tid, term_portrait)
@@ -1455,7 +1454,7 @@ def merge_coreference_portraits(nafobj, sentence_level_portraits):
 
 
 
-def extract_microportraits(inputfile, outputfile, surface=False):
+def extract_microportraits(inputfile, outputfile, surface=False, use_coref=True):
     '''
     Function that calls functions extracting components of microportraits and merges them
     :param inputfile: the input naf file
@@ -1468,7 +1467,8 @@ def extract_microportraits(inputfile, outputfile, surface=False):
     #language independent: creates dep2heads, head2deps, term2lemmas (todo: create better storage functions)
     create_info_dicts(nafobj, surface)
     sentence_level_portraits = extract_sentence_level_portraits(nafobj)
-    merge_coreference_portraits(nafobj, sentence_level_portraits)
+    if use_coref:
+        merge_coreference_portraits(nafobj, sentence_level_portraits)
     prefix = inputfile.rstrip('.naf')
     create_output(sentence_level_portraits, prefix, outputfile)
 
@@ -1480,6 +1480,8 @@ def main():
     parser = argparse.ArgumentParser()
     #TODO the descriptions can contain surface forms or lemmas, default is lemmas
     parser.add_argument('-s', '--surface', action='store_true', default=False)
+    parser.add_argument('-c', '--no-coref', action='store_true', default=False,
+                        help="If true, disable coreference resolution")
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
     #TODO multiple languages will be supported. Default is Dutch
     parser.add_argument('-l','--language', default='nl')
@@ -1494,7 +1496,7 @@ def main():
    # else:
    #     logging.basicConfig(level=logging.INFO,format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
 
-    extract_microportraits(args.inputfile, sys.stdout, args.surface)
+    extract_microportraits(args.inputfile, sys.stdout, args.surface, not args.no_coref)
 
 
 if __name__ == '__main__':
