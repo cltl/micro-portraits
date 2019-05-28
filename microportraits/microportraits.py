@@ -492,13 +492,8 @@ def analyze_pobject(nafobj, head_id):
         elif deprel[1] == 'hd/obj2':
             basic_role = 'recipient'
             general_head = deprel[0]
-        #elif deprel[1] in ['crd/cnj']:
-        #    basic_role, general_head = analyze_pobject(nafobj, deprel[0])
-        #    basic_role, general_head = analyze_pobject(nafobj, general_head)
-        #    print(basic_role, general_head)
         elif not deprel[1] in ['crd/cnj','dp/dp']:
             _debug(deprel, 'between PP and head')
-    #print(basic_role, general_head)
     return basic_role, general_head
 
 
@@ -810,7 +805,6 @@ def analyze_passive_structure_old(nafobj, entityid, term_portrait):
     for br in basicroles:
         activity = br.split(';')
         activity.append(headpos)
- #   print(basicroles)
   #      term_portrait.add_activity(activity)
 
 
@@ -877,6 +871,8 @@ def duplicate_heads(heads):
     :param heads:
     :return: Boolean
     '''
+    if len(heads) == 0:
+        return False
     refence_rel = heads[0][1]
     for headrel in heads:
         if headrel[1] != refence_rel:
@@ -973,7 +969,6 @@ def investigate_relations(nafobj, tid, term_portrait):
                 if hierarchy is not None:
                     heads = hierarchy
                 else:
-                    print(heads)
                     heads = []
         elif is_passive(heads):
             analyze_passive_structure(nafobj, tid, term_portrait)
@@ -1455,7 +1450,7 @@ def merge_coreference_portraits(nafobj, sentence_level_portraits):
 
 
 
-def extract_microportraits(inputfile, outputfile, surface=False):
+def extract_microportraits(inputfile, outputfile, surface, nocoref):
     '''
     Function that calls functions extracting components of microportraits and merges them
     :param inputfile: the input naf file
@@ -1468,7 +1463,8 @@ def extract_microportraits(inputfile, outputfile, surface=False):
     #language independent: creates dep2heads, head2deps, term2lemmas (todo: create better storage functions)
     create_info_dicts(nafobj, surface)
     sentence_level_portraits = extract_sentence_level_portraits(nafobj)
-    merge_coreference_portraits(nafobj, sentence_level_portraits)
+    if not nocoref:
+        merge_coreference_portraits(nafobj, sentence_level_portraits)
     prefix = inputfile.rstrip('.naf')
     create_output(sentence_level_portraits, prefix, outputfile)
 
@@ -1481,6 +1477,7 @@ def main():
     #TODO the descriptions can contain surface forms or lemmas, default is lemmas
     parser.add_argument('-s', '--surface', action='store_true', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
+    parser.add_argument('-c', '--nocoref', action='store_true', default=False)
     #TODO multiple languages will be supported. Default is Dutch
     parser.add_argument('-l','--language', default='nl')
     #TODO roles in activities can be derived from dependencies or from srl output, default is dependencies
@@ -1494,7 +1491,7 @@ def main():
    # else:
    #     logging.basicConfig(level=logging.INFO,format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
 
-    extract_microportraits(args.inputfile, sys.stdout, args.surface)
+    extract_microportraits(args.inputfile, sys.stdout, args.surface, args.nocoref)
 
 
 if __name__ == '__main__':
