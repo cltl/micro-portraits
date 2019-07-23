@@ -1130,14 +1130,18 @@ def extract_sentence_portrait(nafobj, term):
     term_portrait = cMicroportait(tid)
     term_portrait.set_pos(term.get_pos())
     #check if mwp
+    name = False
     mwp = False
     #FIXME: parser output specific: create resources that map functions for resource to activity; also: no SRL information available yet...
-    
+    #FIXME: identify names when not primary label as well (create name interpretation function and always check)
     #modification, etc
+    if term_portrait.get_pos() == 'name' and tid in head2deps:
+        name = True
+
     if tid in head2deps:
         for dep in head2deps.get(tid):
             #term = nafobj.get_term(dep[0])
-            if dep[1] in ['mwp/mwp','hd/det','hd/app']:
+            if dep[1] in ['hd/det','hd/app'] or (dep[1] == 'mwp/mwp' and not name):
 
                 add_rows_for_description(dep[0],nafobj,head2deps,term_portrait,'label')
 
@@ -1147,8 +1151,21 @@ def extract_sentence_portrait(nafobj, term):
 
             else:
                 _debug(dep[1], 'new dependency of entity')
-    if not mwp:
+    if not name:
         description = cDescription(tid,term2lemma.get(tid),'label',term.get_pos())
+        term_portrait.add_label(description)
+    else:
+        #FIXME hack for ordering
+        lemma = {int(tid.split('_')[1]):term2lemma.get(tid)}
+        for dep in head2deps.get(tid):
+            if dep[1] == 'mwp/mwp':
+                depterm = nafobj.get_term(dep[0])
+                if depterm.get_pos() == 'name':
+                    lemma[int(dep[0].split('_')[1])] = depterm.get_lemma()
+        ultimate_lemma = ''
+        for wnr in sorted(lemma):
+            ultimate_lemma += lemma[wnr] + ' '
+        description = cDescription(tid,ultimate_lemma.rstrip(),'label',term.get_pos())
         term_portrait.add_label(description)
 
     #activity relations FIXME: split these in different functions, so that srl-based or syntax based can be options
